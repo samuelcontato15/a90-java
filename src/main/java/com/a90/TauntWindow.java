@@ -82,7 +82,6 @@ public class TauntWindow extends Stage {
     /** Mostra a janela e inicia glitch + timer de fechamento. */
     public void launch() {
         show();
-        Assets.playSound("tauntSpawn.wav");
 
         double bX = getX(), bY = getY();
 
@@ -103,7 +102,6 @@ public class TauntWindow extends Stage {
         PauseTransition closeTimer = new PauseTransition(Duration.millis(delay));
         closeTimer.setOnFinished(ev -> {
             if (!closed) {
-                Assets.playSound("tauntLeave.wav");
                 glitch.stop();
                 close();
             }

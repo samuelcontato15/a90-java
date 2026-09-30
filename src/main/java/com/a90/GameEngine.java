@@ -44,7 +44,7 @@ import java.util.Random;
  */
 public class GameEngine {
 
-    static final int ROUND_SECONDS = 90;  // sempre 1:30
+    static final int ROUND_SECONDS = 78;  // 3 × 26s — one layer per phase, no gaps
     static final int PHASE_SECONDS = ROUND_SECONDS / Phase.values().length; // 30s por layer
     private static final int COINS_PER_WAVE = 7;
     private static final int MAX_TAUNTS     = 30;  // teto de popups abertos ao mesmo tempo
@@ -68,9 +68,10 @@ public class GameEngine {
     private static GlitchOverlay   glitch;
     private static RansomWindow    ransomWindow;
     private static MusicPlayer     music;
-    private static PauseTransition pendingEnd; // cleanup agendado após win/lose
+    private static PauseTransition pendingEnd;
     private static Phase           phase = Phase.CALM;
-    private static boolean         gameOver = false;
+    private static boolean         gameOver     = false;
+    private static boolean         quitOnCleanup = false;
 
     // ──────────────────────────────────────────────────────
     //                     ENTRY POINTS
@@ -151,9 +152,6 @@ public class GameEngine {
     // ──────────────────────────────────────────────────────
 
     private static void phaseRansom() {
-        WallpaperManager.saveOriginal();
-        WallpaperManager.applyTheme();
-
         // A leva de moedas de cada fase é sorteada já aqui, para o débito ser conhecido
         List<List<CoinType>> waves = new ArrayList<>();
         for (int i = 0; i < Phase.values().length; i++) waves.add(rollWave());
@@ -193,11 +191,8 @@ public class GameEngine {
     private static void enterPhase(Phase p, List<CoinType> wave) {
         if (gameOver) return;
         phase = p;
-        music.playLooping(p.music);
-        if (p != Phase.CALM) {
-            Assets.playSound("spawn.wav");           // o A-90 avisa que piorou
-            if (glitch != null) glitch.burst();      // pico de glitch na troca de layer
-        }
+        music.playOnceEndingAt(p.music, PHASE_SECONDS);
+        if (p != Phase.CALM && glitch != null) glitch.burst();
 
         spawnWave(wave);
         for (int i = 0; i < p.tauntBurst; i++) spawnTaunt();
@@ -282,15 +277,16 @@ public class GameEngine {
     //                     TAUNTS
     // ──────────────────────────────────────────────────────
 
-    /** Abre um popup de taunt (respeitando o teto). Também chamado pelos popups que se multiplicam. */
+    /** Opens a taunt popup (respecting the cap). Also called by popups that multiply. */
     static void spawnTaunt() {
         if (gameOver || taunts.size() >= MAX_TAUNTS) return;
         TauntWindow tw = new TauntWindow();
         taunts.add(tw);
         tw.setOnHidden(e -> taunts.remove(tw));
         tw.launch();
-        // O alvo nunca fica soterrado (sem roubar o foco de quem está arrastando)
+        // Keep ransom window and all coins above the new popup
         if (ransomWindow != null) Win32Window.raise(ransomWindow);
+        new ArrayList<>(coins).forEach(Win32Window::raise);
     }
 
     // ──────────────────────────────────────────────────────
@@ -323,7 +319,21 @@ public class GameEngine {
         if (ransomWindow != null) ransomWindow.showResult(false);
 
         overlay.show();
-        overlay.showCrashJumpscare(() -> endAfter(2));
+        overlay.showCrashJumpscare(() -> {
+            // Audio stutter: rapid replays simulate a frozen/looping sound
+            Timeline audioFreeze = new Timeline(
+                new KeyFrame(Duration.millis(80), e -> Assets.playSound("spawn.wav", 0.4)));
+            audioFreeze.setCycleCount(25); // 25 × 80ms ≈ 2s
+            audioFreeze.play();
+
+            overlay.showFreeze(() -> {
+                // Wallpaper changes only on lose — stays for 3s, then the app closes
+                WallpaperManager.saveOriginal();
+                WallpaperManager.applyTheme();
+                quitOnCleanup = true;
+                endAfter(3);
+            });
+        });
     }
 
     // ──────────────────────────────────────────────────────
@@ -347,6 +357,7 @@ public class GameEngine {
         overlay = null;
         if (ransomWindow != null) { ransomWindow.close(); ransomWindow = null; }
 
+        if (quitOnCleanup) { quitOnCleanup = false; App.quit(); return; }
         if (GameConfig.mode == GameConfig.Mode.INFINITE) scheduleNextAttack();
         else Platform.runLater(onReturnToMenu);
     }

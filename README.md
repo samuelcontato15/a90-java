@@ -1,98 +1,37 @@
-# A-90 Minigame — Java/JavaFX · v1.1
+# A-90 Minigame — Java/JavaFX
 
-Recriação educacional do minigame A-90 (Archives) de Doors em Java puro.  
-Nenhum arquivo do sistema é criado. A única interação com o SO é a troca  
-**temporária e reversível** do wallpaper, que volta automaticamente ao encerrar
-(inclusive se o processo for morto pelo Gerenciador de Tarefas — ver [Segurança](#segurança)).
+An educational recreation of the A-90 minigame from DOORS: Archives, built in pure Java.
 
-## Novidades da v1.1
+The system wallpaper is only touched once: on a loss, it switches to the ransom image for 3 seconds as the app closes, then restores automatically via the shutdown hook.
 
-- **Rodada fixa de 1:30**, em 3 fases de 30 s — uma layer da OST por fase. A cada troca
-  de layer o jogo fica mais tenso, e os últimos 30 s são desesperadores (ver [Fases](#fases)).
-- **Moedas em 3 levas** (uma por fase) que **pulam de lugar até serem pegas**; o débito só
-  fecha com moedas da última leva, então toda rodada chega à fase final.
-- **Dois modos**: voltar ao menu ao terminar, ou **infinito** (o A-90 volta sozinho em
-  intervalos aleatórios até você fechar o app).
-- **Atalho global `Ctrl+Alt+Shift+A`** fecha o app de qualquer lugar.
-- **Glitch na tela inteira** que vai poluindo a imagem conforme o tempo passa
-  (ver [Glitch](#glitch)).
-- **Jumpscare visível de verdade**: o código sempre existiu, mas `ransom_attack.gif`
-  nunca era empacotado, então a tela só tremia vermelha sem rosto nenhum. Agora o rosto
-  aparece, ocupando 78% da altura da tela, com soco de zoom.
-- **Todos os assets da pasta `Assets/` em uso** (exceto os do crucifixo). O Maven
-  empacota a pasta direto — não existe mais `copy-assets.bat` nem cópia manual.
-- **Arte por tier de moeda** (`Gold/Gold1..5.ico`, `HoneyPot.ico`), **cursor infectado**,
-  **vinheta vermelha** no aviso e nos jumpscares, **CD girando** no "DOWNLOADING",
-  **brilho `Starlight`** a cada moeda entregue e **ícones** de janela e do `.exe`.
-- Suporte a `.ico`/`.cur` (o JavaFX não lê esses formatos nativamente) via `IcoDecoder`.
-- **Crucifixo removido**: a moeda Crucifix e a `CrucifixWindow` saíram do jogo, e
-  `crucifix.ico`, `crucifix.wav`, `ransom_crucifix.png` e `repent.gif` não são empacotados.
-- Correções: overlay centralizado (jumpscare e placa STOP saíam no canto da tela),
-  música que voltava a tocar depois do fim da rodada, moedas e popups que surgiam após a
-  rodada acabar, moedas que nasciam embaixo da janela do A-90, janela do A-90 cortada na
-  borda da tela, tela de início duplicada, wallpaper não restaurado quando o fundo
-  original era uma cor sólida.
+## Gameplay
 
-## Mecânica
+1. **Warning** — A-90's face appears at a random position, then centers with a STOP sign and red vignette. Keep the mouse still for 0.5 s to dodge; moving triggers the attack.
+2. **Install** — Jumpscare, then a "DOWNLOADING…" screen with a spinning CD.
+3. **Ransom (1:18)** — Popup windows flood the screen and coins scatter across the desktop. Drag coins to the A-90 window to pay off the debt. Every 26 s the music escalates and the game intensifies.
+4. **Win** — Paid in full: "THANK YOU" animation, then the start screen.
+5. **Lose** — Crash jumpscare, wallpaper switches to the ransom image for 3 seconds, app closes.
 
-1. **Aviso** — o rosto do A-90 aparece num ponto aleatório, vai para o centro com a
-   placa STOP sobre a vinheta vermelha. **Não mexa o mouse** por 0,5 s:
-   se ficar parado, você desvia e a rodada termina sem resgate.
-2. **Instalação** — se mexeu: jumpscare, e a tela "DOWNLOADING..." com um CD girando.
-3. **Resgate (1:30)** — o wallpaper muda, popups de taunt aparecem e as moedas se
-   espalham pelo desktop. Arraste moedas até a janela do A-90 (direita) até zerar o
-   débito. A cada 30 s a música troca e o jogo aperta.
-4. **Fim** — pagou: animação "THANK YOU". Tempo esgotado: jumpscare final.
-   O wallpaper é restaurado e o jogo volta ao menu (ou, no modo infinito, some até o
-   próximo ataque).
+## Phases
 
-### Fases
+| Time      | Layer        | On enter                       | Popups                         | Coins                       | Shake |
+|-----------|--------------|--------------------------------|--------------------------------|-----------------------------|------:|
+| 1:18–0:52 | `layer1.wav` | 3 popups                       | 1 new every 5 s, 2% multiply  | stationary                  |  5 px |
+| 0:52–0:26 | `layer2.wav` | 2 popups                       | 1 new every 2 s, 3% multiply  | jump every ~4 s             |  9 px |
+| 0:26–0:00 | `layer3.wav` | 3 popups                       | 1 new every 0.6 s, 4% multiply| jump every ~1.4 s           | 16 px |
 
-| Tempo     | Layer        | Ao entrar                        | Popups                         | Moedas                          | Tremor |
-|-----------|--------------|----------------------------------|--------------------------------|---------------------------------|-------:|
-| 1:30–1:00 | `layer1.wav` | leva 1 de moedas + 9 popups      | se multiplicam (2%)            | paradas                         |   5 px |
-| 1:00–0:30 | `layer2.wav` | leva 2 + 5 popups + `spawn.wav`  | 1 novo a cada 2 s, 3%          | pulam (~a cada 4 s)             |   9 px |
-| 0:30–0:00 | `layer3.wav` | leva 3 + 10 popups + `spawn.wav` | 1 novo a cada 0,6 s, 4%        | pulam (~a cada 1,4 s)           |  16 px |
+- Each layer plays exactly once for its 26 s phase — no looping, no gaps between tracks.
+- Layer 3 is timed to end exactly at 0 s.
+- "N% multiply": every 200 ms each open popup has an N% chance to spawn another.
+- Max 30 popups open at once. Coins are always raised above popups.
+- The coin being dragged never jumps.
+- All values are in `Phase.java`.
 
-- "Se multiplicam (N%)": a cada 200 ms, cada popup aberto tem N% de chance de abrir outro.
-- No máximo 30 popups abertos ao mesmo tempo; a janela do A-90 é trazida para a frente
-  sempre que um popup abre, e uma moeda que pula volta para cima dos popups.
-- A moeda que está sendo arrastada nunca pula.
-- Cada layer tem 26,18 s e fica em loop até a troca de fase.
-- Todos os números ficam em `Phase.java`, para ajustar a dificuldade.
+## Coins
 
-### Glitch
+Each phase spawns 7 weighted-random coins plus a HoneyPot (30% chance, arrives 3.5 s late).
 
-Uma camada cobre a tela inteira durante o resgate e vai sujando a imagem: começa
-imperceptível e no fim atrapalha de verdade enxergar as moedas. A intensidade sobe de
-forma contínua com o tempo (curva `t^1.6`), e cada troca de layer dá um pico curto.
-
-| Efeito | O que é |
-|---|---|
-| Estática | `static.gif` ladrilhado, deslocado a cada quadro |
-| Rasgos | Fatias horizontais aleatórias dos `Taunts/glitch*` esticadas na largura da tela, deslocadas na horizontal, com blend variado |
-| Separação de cor | Faixas vermelhas/ciano deslocadas |
-| Scanlines | Linhas escuras de 3 px |
-| Vinheta | `red_vignette.gif` pulsando |
-| Piscadas | Inversão de cor da tela e rostos (`tauntface`, `idiot`, `tauntflower`, `ransom_idle`) em tela cheia |
-
-A camada é **click-through**: é só pintura, os cliques atravessam para as moedas e para
-a barra de tarefas. Ela nunca recebe foco, então o `ESC` e o atalho global continuam
-valendo. Cobre só a área útil da tela, deixando a barra de tarefas visível.
-
-Medido a 1920x1032: no pico, cerca de **63%** do que está embaixo ainda aparece.
-Os tetos ficam nas constantes `MAX_*` de `GlitchOverlay.java` — suba-os para sujar mais.
-
-> **Epilepsia fotossensível**: as piscadas de tela cheia são limitadas a no máximo uma a
-> cada 0,42 s (medido: ~1,1 por segundo no pico), abaixo do limiar usual de 3 flashes por
-> segundo. A constante é `FLASH_GAP_TICKS`. Considere quem vai jogar antes de afrouxá-la.
-
-### Moedas
-
-Cada fase traz uma leva de 7 moedas sorteadas, mais uma HoneyPot com 30% de chance
-(ela chega 3,5 s depois da leva). Moedas não pegas continuam na tela.
-
-| Tier     | Valor | Chance | Sprite              |
+| Tier     | Value | Chance | Sprite              |
 |----------|------:|-------:|---------------------|
 | Gold 1   |    10 |    40% | `Gold/Gold1.ico`    |
 | Gold 2   |    50 |    30% | `Gold/Gold2.ico`    |
@@ -101,134 +40,149 @@ Cada fase traz uma leva de 7 moedas sorteadas, mais uma HoneyPot com 30% de chan
 | Gold 5   |   200 |     7% | `Gold/Gold5.ico`    |
 | HoneyPot |   500 |    30% | `Gold/HoneyPot.ico` |
 
-**Débito** = valor total das levas 1 e 2 + metade da leva 3. Não dá para pagar antes da
-fase final, mas sobra folga: dá para deixar ~20% do valor em moedas para trás
-(média de 10.000 rodadas simuladas: débito 1421, folga 285).
+**Debt** = full value of waves 1 and 2 + half of wave 3. Impossible to win before the final phase, but there is ~20% slack.
 
-## Modos
+## Glitch overlay
 
-Escolha em **[ configuração ]** na tela de início:
+A click-through full-screen layer pollutes the image continuously during the ransom phase. Intensity follows a `t^1.6` curve; each phase transition adds a short spike.
 
-- **Voltar ao menu** (padrão) — ao terminar a rodada (vitória, derrota, desvio ou ESC),
-  a tela de início abre de novo.
-- **Infinito** — o primeiro ataque começa ao clicar INICIAR. Ao terminar cada rodada,
-  o A-90 some e volta sozinho após um intervalo aleatório (padrão: entre 15 e 45 s,
-  ~30 s em média), para sempre. Entre um ataque e outro não há janela nenhuma aberta.
-  Para parar: **`Ctrl+Alt+Shift+A`**, ou encerrar o processo pelo Gerenciador de Tarefas
-  (`A90-Minigame.exe` no `.exe`, `java.exe` / `javaw.exe` ao rodar pelo Maven).
+| Effect         | Description |
+|----------------|-------------|
+| Static         | `static.gif` tiled, shifted every frame |
+| Tears          | Horizontal slices of `Taunts/glitch*` stretched full-width |
+| Color split    | Red/cyan offset bands |
+| Scanlines      | 3 px dark lines |
+| Vignette       | `red_vignette.gif` pulsing |
+| Flash          | Full-screen color inversion + face images (≤ 1.1/s, below the 3 Hz photosensitivity threshold) |
 
-## Controles
+## Wallpaper
 
-| Tecla / ação         | Efeito |
-|----------------------|--------|
-| Arrastar             | Move as moedas |
-| `ESC`                | Encerra a rodada atual e restaura o wallpaper (no modo infinito o A-90 volta depois). Na tela de início, fecha o jogo |
-| `Ctrl+Alt+Shift+A`   | Fecha o app de qualquer lugar, em qualquer modo (atalho global) |
+The system wallpaper is **not changed during the game**. It changes only on a loss:
 
-Se outro programa já usar `Ctrl+Alt+Shift+A`, a tela de início avisa (no modo infinito)
-e o modo infinito só para pelo Gerenciador de Tarefas.
+1. Crash jumpscare plays.
+2. Wallpaper switches to `ransom_attack.png`.
+3. After 3 seconds the app closes and the shutdown hook restores the original wallpaper.
 
-## Configuração
+This approach is Wallpaper Engine–compatible: the animated wallpaper is visible through the game windows during play and resumes normally if the player wins or exits early.
 
-Salva em `%APPDATA%\a90minigame\config.properties`.
+## Modes
 
-| Opção                    | Padrão         | Faixa  |
-|--------------------------|----------------|--------|
-| Ao terminar a rodada     | voltar ao menu | menu / infinito |
-| Intervalo mín/máx (s)    | 15 / 45        | 1–3600 (só no modo infinito) |
+Select in **[ config ]** on the start screen:
 
-A duração (1:30) e o débito são fixos do jogo.
+- **Return to menu** (default) — after a win, dodge, or ESC, the start screen reopens.
+- **Infinite** — A-90 returns automatically after a random interval (default 15–45 s). Use `Ctrl+Alt+Shift+A` or Task Manager to stop it. A loss always closes the app regardless of mode.
 
-## Segurança
+## Controls
 
-- O wallpaper original é restaurado ao fim de cada rodada, com ESC, com o atalho e ao
-  fechar o app.
-- Antes de trocar o wallpaper, o original é anotado em
-  `%APPDATA%\a90minigame\wallpaper.state`. Se o processo for morto no meio de um ataque
-  (Gerenciador de Tarefas), o wallpaper do A-90 fica até a **próxima execução** do jogo,
-  que o restaura automaticamente ao abrir.
-- Se não for possível ler o wallpaper atual, o jogo não troca o wallpaper.
+| Input               | Effect |
+|---------------------|--------|
+| Drag                | Move coins |
+| `ESC`               | Ends the current round; closes the app from the start screen |
+| `Ctrl+Alt+Shift+A`  | Closes the app from anywhere (global hotkey) |
 
-## Pré-requisitos
+## Configuration
 
-- JDK 21+
+Saved to `%APPDATA%\a90minigame\config.properties`.
+
+| Option             | Default        | Range |
+|--------------------|----------------|-------|
+| After round        | return to menu | menu / infinite |
+| Min/max delay (s)  | 15 / 45        | 1–3600 (infinite mode only) |
+
+## Requirements (to build)
+
+- JDK 21+ (includes `jpackage`) — https://adoptium.net
 - Maven 3.8+
 
-## Rodar
+Make sure both are on your PATH:
+
+```bat
+java -version
+jpackage --version
+mvn -version
+```
+
+If `jpackage` is not found but Java is installed, add the JDK `bin` folder to PATH manually:
+`Win + R` → `sysdm.cpl` → Advanced → Environment Variables → System `Path` → New → `C:\Program Files\Java\jdk-XX\bin`
+Then open a new terminal window.
+
+The recipient needs **nothing installed** — the `.exe` bundles its own Java runtime.
+
+## Run (dev)
 
 ```bat
 mvn javafx:run
 ```
 
-Não há passo de setup: os assets vêm direto de `Assets/`.
+Assets are bundled from `Assets/` — no extra setup.
 
-## Gerar o .exe
+## Build .exe (distribution)
 
 ```bat
 build-exe.bat
 ```
 
-Gera `target\dist\A90-Minigame\A90-Minigame.exe` (com o ícone `stop_sign.ico`),
-que roda sem Java instalado. Ao mudar a versão no `pom.xml`, atualize `VERSION` no script.
+Produces `target\dist\A90-Minigame\`. Zip that entire folder and send it — the recipient just extracts and double-clicks `A90-Minigame.exe`.
+
+Update `VERSION` in `build-exe.bat` if you bump the version in `pom.xml`.
 
 ## Assets
 
-Tudo em `Assets/` é empacotado como `/assets` no classpath (ver `<resources>` no `pom.xml`).
+All files under `Assets/` are packaged as `/assets` on the classpath (see `<resources>` in `pom.xml`).
 
-| Arquivo                                   | Uso |
+| File                                      | Use |
 |-------------------------------------------|-----|
-| `ransom_idle.png`                         | Rosto do A-90 no aviso e na janela de resgate |
-| `ransom_attack.gif`                       | Jumpscares (instalação e derrota), em tela cheia |
-| `ransom_attack.png`                       | Wallpaper temporário durante o resgate |
-| `stop_sign.png`                           | Placa STOP da fase de aviso |
-| `red_vignette.gif`                        | Vinheta no aviso, nos jumpscares e na camada de glitch |
-| `static.gif`                              | Estática no jumpscare, no download e na camada de glitch |
-| `CD-1.png`                                | CD girando na tela "DOWNLOADING" |
-| `Gold.png`                                | Ícone ao lado do débito na janela de resgate |
-| `Gold/Gold1..5.ico`, `Gold/HoneyPot.ico`  | Sprites (e ícones de janela) de cada moeda |
-| `Starlight.png`                           | Brilho ao entregar uma moeda |
-| `infectedcursor.cur`                      | Cursor nas janelas do jogo após a infecção |
-| `ok_sign.png`, `thx_txt.png`              | Animação de vitória "THANK YOU" |
-| `Taunts/*`                                | Imagens dos popups de taunt e das faixas rasgadas do glitch |
-| `stop_sign.ico`                           | Ícone do app, das janelas e do `.exe` |
-| `CD-1.ico`                                | Ícone da janela de instalação (overlay) |
-| `Gold.ico`                                | Ícone da janela de resgate |
-| `Sounds/spawn.wav`                        | A-90 aparece; também marca cada troca de fase |
+| `ransom_idle.png`                         | A-90 face in warning and ransom window |
+| `ransom_attack.gif`                       | Jumpscares (full-screen) |
+| `ransom_attack.png`                       | Wallpaper on loss |
+| `stop_sign.png`                           | STOP sign in warning phase |
+| `red_vignette.gif`                        | Vignette in warning, jumpscares, glitch layer |
+| `static.gif`                              | Static in jumpscare, download, glitch layer, ransom background |
+| `CD-1.png`                                | Spinning CD in "DOWNLOADING" |
+| `Gold.png`                                | Icon beside the debt counter |
+| `Gold/Gold1..5.ico`, `Gold/HoneyPot.ico`  | Coin sprites and window icons |
+| `Starlight.png`                           | Burst effect on coin delivery |
+| `infectedcursor.cur`                      | Infected cursor after install |
+| `ok_sign.png`, `thx_txt.png`              | "THANK YOU" victory animation |
+| `Taunts/glitch1..5`, `Taunts/*.png`       | Popup images, glitch tear slices, ransom background cycling |
+| `stop_sign.ico`                           | App, window, and .exe icon |
+| `CD-1.ico`                                | Install overlay window icon |
+| `Gold.ico`                                | Ransom window icon |
+| `Sounds/spawn.wav`                        | A-90 appears (warning phase) |
 | `Sounds/attack.wav`                       | Jumpscares |
-| `Sounds/install.wav`                      | Início do "DOWNLOADING" |
-| `Sounds/layer1..3.wav`                    | OST do resgate, uma layer por fase (30 s cada, em loop) |
-| `Sounds/cash.wav`                         | Moeda entregue |
-| `Sounds/tauntSpawn.wav`, `tauntLeave.wav` | Popup de taunt abre / fecha sozinho |
-| `Sounds/thankyou.wav`                     | Vitória |
+| `Sounds/install.wav`                      | "DOWNLOADING" start |
+| `Sounds/layer1..3.wav`                    | Ransom OST — one layer per 26 s phase, played once each |
+| `Sounds/cash.wav`                         | Coin delivered |
+| `Sounds/thankyou.wav`                     | Victory |
 
-Fora do build (crucifixo): `crucifix.ico`, `ransom_crucifix.png`, `repent.gif`,
-`Sounds/crucifix.wav`.
+Not packaged (crucifix content removed): `crucifix.ico`, `ransom_crucifix.png`, `repent.gif`, `Sounds/crucifix.wav`.
+Unused popup sounds (removed): `Sounds/tauntSpawn.wav`, `Sounds/tauntLeave.wav`.
 
-## Estrutura
+## Structure
 
 ```
-Assets/                  — imagens, ícones, cursor e sons (fonte única dos assets)
+Assets/                  — images, icons, cursor, sounds (single asset source)
 
 src/main/java/com/a90/
-  App.java               — entry point, tela de início, shutdown hook, recuperação do wallpaper
-  Launcher.java          — main() para fat JAR / jpackage
-  GameEngine.java        — máquina de estados (aviso, instalação, resgate, win/lose, modos)
-  Phase.java             — as 3 fases do resgate e a intensidade de cada uma
-  GameConfig.java        — configurações persistidas em %APPDATA%
-  ConfigWindow.java      — janela de configuração
-  KillSwitch.java        — atalho global Ctrl+Alt+Shift+A (JNA RegisterHotKey)
-  OverlayWindow.java     — overlay full-screen: aviso, jumpscares, download
-  GlitchOverlay.java     — camada de glitch click-through que polui a tela
-  Win32Window.java       — click-through e trazer para frente sem roubar foco (user32)
-  RansomWindow.java      — janela do A-90 onde as moedas são entregues
-  TauntWindow.java       — popups de glitch/taunt
-  ThankYouWindow.java    — animação de vitória
-  CoinSprite.java        — moeda arrastável transparente always-on-top
-  CoinType.java          — tiers de moeda (valor, chance, sprite)
-  StarlightBurst.java    — brilho ao entregar moeda
-  MusicPlayer.java       — OST em layers sequenciais
-  Assets.java            — carregador de imagens, ícones, cursores e sons
-  IcoDecoder.java        — decodificador de .ico/.cur (PNG e BMP)
-  WallpaperManager.java  — JNA user32.dll, salva/restaura wallpaper
-  A90Window.java, TimerHUD.java — stubs legados (substituídos)
+  App.java               — entry point, start screen, shutdown hook, crash recovery
+  Launcher.java          — main() for fat JAR / jpackage
+  GameEngine.java        — state machine (warning → install → ransom → win/lose → cleanup)
+  Phase.java             — 3 ransom phases and their intensity values
+  GameConfig.java        — settings persisted to %APPDATA%
+  ConfigWindow.java      — config dialog
+  KillSwitch.java        — global hotkey Ctrl+Alt+Shift+A (JNA RegisterHotKey)
+  OverlayWindow.java     — full-screen overlay: warning, jumpscares, download
+  GlitchOverlay.java     — click-through glitch layer over the ransom phase
+  Win32Window.java       — click-through and no-steal-focus raise (user32)
+  RansomWindow.java      — A-90 window where coins are delivered
+  TauntWindow.java       — glitch popup windows
+  ThankYouWindow.java    — victory animation
+  CoinSprite.java        — draggable always-on-top coin
+  CoinType.java          — coin tiers (value, weight, sprite)
+  StarlightBurst.java    — burst effect on coin delivery
+  MusicPlayer.java       — OST layer sequencing (each track plays once, back-to-back)
+  Assets.java            — image, icon, cursor, and sound loader/cache
+  IcoDecoder.java        — .ico/.cur decoder (PNG and BMP)
+  WallpaperManager.java  — saves and restores wallpaper; applied only on loss
+  A90Window.java, TimerHUD.java — legacy stubs
 ```

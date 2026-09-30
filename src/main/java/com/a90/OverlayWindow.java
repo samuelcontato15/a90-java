@@ -263,6 +263,44 @@ public class OverlayWindow extends Stage {
         shake.play();
     }
 
+    // ─────────────────── PC FREEZE ───────────────────
+
+    /**
+     * 2-second "frozen PC" effect: jumpscare frame stuck on screen, heavy static,
+     * background color-strobing, image stuttering. Stored in shakeTimeline so close()
+     * stops it cleanly if the player presses ESC mid-freeze.
+     */
+    public void showFreeze(Runnable onDone) {
+        imgAttack.setOpacity(1);
+        imgAttack.setTranslateX(0);
+        imgAttack.setTranslateY(0);
+        imgStatic.setOpacity(0.9);
+        imgVignette.setOpacity(1);
+        root.setBackground(new Background(new BackgroundFill(Color.rgb(120, 0, 0), null, null)));
+
+        Timeline freeze = new Timeline(new KeyFrame(Duration.millis(50), e -> {
+            imgAttack.setTranslateX((RNG.nextDouble() * 2 - 1) * 30);
+            imgAttack.setTranslateY((RNG.nextDouble() * 2 - 1) * 15);
+            imgStatic.setOpacity(0.5 + RNG.nextDouble() * 0.5);
+            imgVignette.setOpacity(0.3 + RNG.nextDouble() * 0.7);
+            int r = 60 + RNG.nextInt(120);
+            root.setBackground(new Background(new BackgroundFill(Color.rgb(r, RNG.nextInt(15), 0), null, null)));
+        }));
+        freeze.setCycleCount(40); // 40 × 50ms = 2s
+        freeze.setOnFinished(e -> {
+            imgAttack.setOpacity(0);
+            imgStatic.setOpacity(0);
+            imgVignette.setOpacity(0);
+            imgAttack.setTranslateX(0);
+            imgAttack.setTranslateY(0);
+            root.setBackground(Background.EMPTY);
+            if (onDone != null) onDone.run();
+        });
+
+        shakeTimeline = freeze; // close() will stop it on ESC
+        freeze.play();
+    }
+
     // ─────────────────── helpers ───────────────────
 
     private ImageView makeIV(String name, double w, double h) {

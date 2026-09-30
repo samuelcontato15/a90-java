@@ -9,9 +9,9 @@ package com.a90;
 enum Phase {
     //           música        popups    popup novo   multiplica   moedas pulam   chance de   tremor
     //                         ao entrar a cada (ms)  (%/200ms)    a cada (ms)    pular       (px)
-    CALM     ("layer1.wav",    9,        0,           2,           0,             0.00,        5),
-    TENSE    ("layer2.wav",    5,        2000,        3,           1000,          0.25,        9),
-    DESPERATE("layer3.wav",   10,        600,         4,           500,           0.35,       16);
+    CALM     ("layer1.wav",    3,        5000,        2,           0,             0.00,        5),
+    TENSE    ("layer2.wav",    2,        2000,        3,           1000,          0.25,        9),
+    DESPERATE("layer3.wav",    3,         600,        4,           500,           0.35,       16);
 
     final String music;
     final int    tauntBurst;       // popups abertos de uma vez ao entrar na fase

@@ -80,11 +80,15 @@ public class Assets {
 
     /** Dispara som de /assets/Sounds/<name> (fire-and-forget). */
     public static void playSound(String name) {
+        playSound(name, 1.0);
+    }
+
+    public static void playSound(String name, double volume) {
         AudioClip clip = sounds.computeIfAbsent(name, k -> {
             URL url = soundUrl(k);
             return url != null ? new AudioClip(url.toString()) : null;
         });
-        if (clip != null) clip.play();
+        if (clip != null) clip.play(volume);
     }
 
     /** Retorna URL de som (para MediaPlayer). */
