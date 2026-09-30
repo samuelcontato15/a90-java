@@ -6,6 +6,7 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
@@ -13,56 +14,86 @@ import javafx.stage.StageStyle;
 
 /**
  * Entry point.
- * Registra shutdown hook (wallpaper restaurado mesmo em crash/kill).
- * Mostra tela de início com botão "INICIAR" e engrenagem de configuração.
+ * Registra shutdown hook (wallpaper restaurado ao sair) e recupera o wallpaper
+ * de uma execução que foi morta no meio da rodada.
+ * Registra o atalho global que fecha o app (necessário para parar o modo infinito).
+ * Mostra tela de início com "INICIAR", configuração e sair.
+ * No modo MENU, ao fim de cada rodada o GameEngine volta para esta tela.
  */
 public class App extends Application {
 
-    private Stage startStage;
+    private static boolean killSwitchOk;
 
     @Override
     public void start(Stage primaryStage) {
-        // Trava de segurança: wallpaper volta mesmo se o processo for morto
+        // Trava de segurança: wallpaper volta ao sair (ESC, atalho, fim do app)...
         Runtime.getRuntime().addShutdownHook(new Thread(WallpaperManager::restore,
                 "wallpaper-restore-hook"));
+        // ...e, se o processo foi morto pelo Gerenciador de Tarefas, volta agora
+        WallpaperManager.recoverFromCrash();
 
         Platform.setImplicitExit(false);
         GameConfig.load();
-        showStartScreen(new Stage());
+        Assets.preload();
+        killSwitchOk = KillSwitch.register(App::quit);
+
+        // Modo MENU: ao fim de cada rodada volta para a tela de início
+        // (Stage novo: initStyle() só pode ser chamado uma vez por Stage)
+        GameEngine.onReturnToMenu = () -> showStartScreen(new Stage());
         showStartScreen(primaryStage);
     }
 
-    private void showStartScreen(Stage stage) {
-        startStage = stage;
+    /** Fecha o app de vez — o shutdown hook restaura o wallpaper. */
+    static void quit() {
+        System.exit(0);
+    }
 
+    private void showStartScreen(Stage stage) {
         Label title = label("A-90 MINIGAME",
             "-fx-font-size:28; -fx-text-fill:#ff2222; -fx-font-weight:bold;");
         Label sub = label("inspirado em DOORS — Archives",
             "-fx-font-size:10; -fx-text-fill:#555555;");
-        Label hint = label("jogue 7 moedas no A-90 antes do tempo acabar",
+        Label hint = label("pague o A-90 em 1:30 — arraste as moedas até ele",
             "-fx-font-size:10; -fx-text-fill:#444444;");
+        Label mode = label(modeText(),
+            "-fx-font-size:10; -fx-text-fill:#886600;");
 
         Button btnStart  = btn("[ INICIAR ]",       "#cc0000", "#ffffff");
         Button btnConfig = btn("[ configuração ]",  "#1a1a1a", "#555555");
+        Button btnExit   = btn("[ sair ]",          "#1a1a1a", "#555555");
 
         btnStart.setOnAction(e -> {
             stage.close();
             GameEngine.start();
         });
-        btnConfig.setOnAction(e -> new ConfigWindow(stage).showAndWait());
+        btnConfig.setOnAction(e -> {
+            new ConfigWindow(stage).showAndWait();
+            mode.setText(modeText());
+            stage.sizeToScene();
+        });
+        btnExit.setOnAction(e -> quit());
 
-        VBox root = new VBox(10, title, sub, hint, btnStart, btnConfig);
+        VBox root = new VBox(10, title, sub, hint, mode, btnStart, btnConfig, btnExit);
         root.setAlignment(Pos.CENTER);
         root.setStyle("-fx-background-color:#060606; -fx-padding:40;");
 
         Scene scene = new Scene(root);
         scene.setFill(Color.BLACK);
+        scene.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ESCAPE) quit(); });
         stage.initStyle(StageStyle.UNDECORATED);
         stage.setScene(scene);
         stage.setAlwaysOnTop(true);
         stage.setResizable(false);
         stage.setTitle("A-90");
+        Assets.setIcon(stage, Assets.APP_ICON);
         stage.show();
+    }
+
+    private static String modeText() {
+        if (GameConfig.mode == GameConfig.Mode.MENU) return "modo: voltar ao menu";
+        return "modo: infinito — " + (killSwitchOk
+                ? KillSwitch.LABEL + " para parar"
+                : "pare pelo Gerenciador de Tarefas");
     }
 
     private static Label label(String text, String style) {

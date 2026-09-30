@@ -4,16 +4,16 @@ import java.util.Random;
 
 /**
  * Tipos de moeda — valores e pesos fiéis ao original C#.
- * CRUCIFIX não tem peso (spawna separado com 10% de chance).
+ * Cada tier tem sua própria arte (Assets/Gold/*.ico): moeda → pilha → barra → barras → tesouro.
+ * HONEYPOT não tem peso (spawna separado com 30% de chance).
  */
 public enum CoinType {
-    GOLD1("Gold.png",            10,  40),
-    GOLD2("Gold.png",            50,  30),
-    GOLD3("Gold.png",           100,  15),
-    GOLD4("Gold.png",           150,   8),
-    GOLD5("Gold.png",           200,   7),
-    HONEYPOT("Gold.png",        500,   0),   // 30% chance especial
-    CRUCIFIX("ransom_crucifix.png", 0, 0);   // 10% chance especial
+    GOLD1("Gold/Gold1.ico",        10,  40),
+    GOLD2("Gold/Gold2.ico",        50,  30),
+    GOLD3("Gold/Gold3.ico",       100,  15),
+    GOLD4("Gold/Gold4.ico",       150,   8),
+    GOLD5("Gold/Gold5.ico",       200,   7),
+    HONEYPOT("Gold/HoneyPot.ico", 500,   0);   // 30% chance especial
 
     public final String image;
     public final int    value;
@@ -31,10 +31,10 @@ public enum CoinType {
     /** Retorna um tipo normal com probabilidade ponderada (40/30/15/8/7). */
     public static CoinType weightedRandom() {
         int roll = RNG.nextInt(100);
-        if (roll < 40) return GOLD1;
-        if (roll < 70) return GOLD2;
-        if (roll < 85) return GOLD3;
-        if (roll < 93) return GOLD4;
+        for (CoinType t : NORMAL) {
+            if (roll < t.weight) return t;
+            roll -= t.weight;
+        }
         return GOLD5;
     }
 
@@ -47,7 +47,6 @@ public enum CoinType {
             case GOLD4    -> "150";
             case GOLD5    -> "200";
             case HONEYPOT -> "★";
-            case CRUCIFIX -> "✝";
         };
     }
 
@@ -60,7 +59,6 @@ public enum CoinType {
             case GOLD4    -> "#ff7700";
             case GOLD5    -> "#ff2200";
             case HONEYPOT -> "#aa00ff";
-            case CRUCIFIX -> "#00ccff";
         };
     }
 }

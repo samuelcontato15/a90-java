@@ -1,6 +1,9 @@
 @echo off
 setlocal
 
+:: Manter em sincronia com <version> do pom.xml
+set VERSION=1.1
+
 echo [1/3] Compilando e gerando fat JAR...
 call mvn package -q
 if errorlevel 1 (
@@ -14,10 +17,11 @@ if exist "target\dist" rmdir /s /q "target\dist"
 jpackage ^
   --type app-image ^
   --input target ^
-  --main-jar a90-minigame-1.0.jar ^
+  --main-jar a90-minigame-%VERSION%.jar ^
   --name A90-Minigame ^
+  --icon Assets\stop_sign.ico ^
   --dest target\dist ^
-  --app-version 1.0 ^
+  --app-version %VERSION% ^
   --java-options "--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED" ^
   --java-options "-Dfile.encoding=UTF-8"
 

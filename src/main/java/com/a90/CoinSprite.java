@@ -1,5 +1,10 @@
 package com.a90;
 
+import com.sun.jna.platform.win32.User32;
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Label;
@@ -8,8 +13,10 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Background;
 import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
+import javafx.scene.robot.Robot;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import javafx.util.Duration;
 
 import java.util.function.Consumer;
 
@@ -17,13 +24,23 @@ import java.util.function.Consumer;
  * Moeda arrastável — janela transparente always-on-top sobre o desktop.
  * Cada tipo tem valor diferente (CoinType). O label mostra o valor em cima da imagem.
  *
- * Drop: ao soltar o mouse, checa sobreposição com RansomWindow → chama onDropped.
+ * Arrasto: segue o ponteiro global até o botão ser solto de fato, em vez de depender
+ * de onMouseDragged — com popups abrindo e roubando o foco o tempo todo, a janela
+ * pode perder a captura do mouse no meio do arrasto.
+ * Drop: ao soltar, checa sobreposição com RansomWindow → chama onDropped.
+ * Nas fases finais a moeda pula de lugar (jumpTo) enquanto não estiver sendo arrastada.
  */
 public class CoinSprite extends Stage {
 
+    private static final int SM_SWAPBUTTON = 23;
+    private static final int VK_LBUTTON = 0x01, VK_RBUTTON = 0x02;
+    private static Robot robot;
+
     public final CoinType type;
-    private double dragOffsetX, dragOffsetY;
+    private double  dragOffsetX, dragOffsetY;
+    private boolean held;
     private final Consumer<CoinSprite> onDropped;
+    private final Timeline follow;
 
     public CoinSprite(double x, double y, CoinType type, Consumer<CoinSprite> onDropped) {
         this.type      = type;
@@ -32,6 +49,8 @@ public class CoinSprite extends Stage {
         initStyle(StageStyle.TRANSPARENT);
         setAlwaysOnTop(true);
         setResizable(false);
+        Assets.setIcon(this, type.image);
+        Win32Window.tag(this);
 
         // --- imagem ---
         double size = coinSize(type);
@@ -53,20 +72,49 @@ public class CoinSprite extends Stage {
         double wSize = size + 8;
         Scene scene = new Scene(root, wSize, wSize, Color.TRANSPARENT);
 
+        follow = new Timeline(new KeyFrame(Duration.millis(16), e -> followPointer()));
+        follow.setCycleCount(Animation.INDEFINITE);
+
         scene.setOnMousePressed(e -> {
+            if (!e.isPrimaryButtonDown()) return;
             dragOffsetX = e.getSceneX();
             dragOffsetY = e.getSceneY();
+            held = true;
+            Win32Window.raise(this);
+            follow.play();
         });
-        scene.setOnMouseDragged(e -> {
-            setX(e.getScreenX() - dragOffsetX);
-            setY(e.getScreenY() - dragOffsetY);
-        });
-        scene.setOnMouseReleased(e -> checkDrop());
+        scene.setOnMouseReleased(e -> release());
         scene.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ESCAPE) GameEngine.forceExit(); });
+        Assets.infect(scene);
 
         setScene(scene);
         setX(x);
         setY(y);
+    }
+
+    /** true enquanto o jogador segura a moeda — ela não pula de lugar. */
+    boolean isHeld() { return held; }
+
+    /** Pula para outra posição e volta para cima dos popups. */
+    void jumpTo(double x, double y) {
+        setX(x);
+        setY(y);
+        Win32Window.raise(this);
+    }
+
+    private void followPointer() {
+        if (!primaryButtonDown()) { release(); return; }
+        if (robot == null) robot = new Robot();
+        Point2D p = robot.getMousePosition();
+        setX(p.getX() - dragOffsetX);
+        setY(p.getY() - dragOffsetY);
+    }
+
+    private void release() {
+        if (!held) return;
+        held = false;
+        follow.stop();
+        checkDrop();
     }
 
     private void checkDrop() {
@@ -80,6 +128,22 @@ public class CoinSprite extends Stage {
         }
     }
 
+    /** Estado real do botão principal (respeita mouse de canhoto). */
+    private static boolean primaryButtonDown() {
+        try {
+            boolean swapped = User32.INSTANCE.GetSystemMetrics(SM_SWAPBUTTON) != 0;
+            return (User32.INSTANCE.GetAsyncKeyState(swapped ? VK_RBUTTON : VK_LBUTTON) & 0x8000) != 0;
+        } catch (Throwable t) {
+            return true; // sem JNA: o fim do arrasto vem só do onMouseReleased
+        }
+    }
+
+    @Override
+    public void close() {
+        follow.stop();
+        super.close();
+    }
+
     /** Moedas maiores para valores maiores — feedback visual imediato. */
     private static double coinSize(CoinType t) {
         return switch (t) {
@@ -89,7 +153,6 @@ public class CoinSprite extends Stage {
             case GOLD4    -> 80;
             case GOLD5    -> 90;
             case HONEYPOT -> 90;
-            case CRUCIFIX -> 72;
         };
     }
 }

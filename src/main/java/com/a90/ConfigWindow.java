@@ -15,6 +15,7 @@ import javafx.stage.StageStyle;
 /**
  * Janela de configuração simples.
  * Não inclui CrashOnDeath / ExecCMD — apenas parâmetros de jogo.
+ * Modo ao terminar a rodada: voltar ao menu, ou infinito (o A-90 volta sozinho).
  */
 public class ConfigWindow extends Stage {
 
@@ -25,52 +26,48 @@ public class ConfigWindow extends Stage {
         setResizable(false);
 
         String labelStyle = "-fx-font-family:'Courier New'; -fx-font-size:11; -fx-text-fill:#cccccc;";
+        String noteStyle  = "-fx-font-family:'Courier New'; -fx-font-size:9;  -fx-text-fill:#666666;";
         String fieldStyle = "-fx-background-color:#1a1a1a; -fx-text-fill:#ffaa00; " +
                             "-fx-font-family:'Courier New'; -fx-border-color:#440000; -fx-border-width:1;";
 
         Label title = new Label("[ CONFIGURAÇÃO ]");
         title.setStyle("-fx-font-family:'Courier New'; -fx-font-size:13; -fx-text-fill:#ff2222; -fx-font-weight:bold;");
 
+        Label duration = new Label("Duração: 1:30 (fixa)");
+        duration.setStyle(labelStyle);
+
+        // Modo ao terminar a rodada
+        Label modeLabel = new Label("Ao terminar a rodada:");
+        modeLabel.setStyle(labelStyle);
+        ToggleGroup modes = new ToggleGroup();
+        RadioButton rbMenu     = radio("voltar ao menu", modes, labelStyle);
+        RadioButton rbInfinite = radio("modo infinito (o A-90 volta sozinho)", modes, labelStyle);
+        (GameConfig.mode == GameConfig.Mode.INFINITE ? rbInfinite : rbMenu).setSelected(true);
+
+        // Intervalo entre ataques do modo infinito
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(8);
-        grid.setPadding(new Insets(10, 0, 10, 0));
+        grid.setPadding(new Insets(4, 0, 4, 22));
+        TextField tfMin = field(String.valueOf(GameConfig.infiniteMinDelay), fieldStyle);
+        TextField tfMax = field(String.valueOf(GameConfig.infiniteMaxDelay), fieldStyle);
+        addRow(grid, 0, "Intervalo mín (s):", tfMin, labelStyle);
+        addRow(grid, 1, "Intervalo máx (s):", tfMax, labelStyle);
+        grid.disableProperty().bind(rbInfinite.selectedProperty().not());
 
-        // Duração
-        TextField tfDuration = field(String.valueOf(GameConfig.infectionDuration), fieldStyle);
-        addRow(grid, 0, "Duração (s):", tfDuration, labelStyle);
-
-        // Valor do ransom
-        TextField tfRansom = field(String.valueOf(GameConfig.ransomAmount), fieldStyle);
-        addRow(grid, 1, "Valor do ransom:", tfRansom, labelStyle);
-
-        // Min / Max delay de spawn automático
-        CheckBox cbAuto = new CheckBox("Spawn automático");
-        cbAuto.setSelected(GameConfig.spawnAutomatically);
-        cbAuto.setStyle(labelStyle + "-fx-text-fill:#aaaaaa;");
-
-        TextField tfMin = field(String.valueOf(GameConfig.minSpawnDelay), fieldStyle);
-        TextField tfMax = field(String.valueOf(GameConfig.maxSpawnDelay), fieldStyle);
-        tfMin.setDisable(!GameConfig.spawnAutomatically);
-        tfMax.setDisable(!GameConfig.spawnAutomatically);
-        cbAuto.setOnAction(e -> {
-            tfMin.setDisable(!cbAuto.isSelected());
-            tfMax.setDisable(!cbAuto.isSelected());
-        });
-
-        addRow(grid, 2, "Delay mín (s):", tfMin, labelStyle);
-        addRow(grid, 3, "Delay máx (s):", tfMax, labelStyle);
+        Label stopNote = new Label("Parar o modo infinito: " + KillSwitch.LABEL + "\n" +
+                                   "(ou encerrar pelo Gerenciador de Tarefas)");
+        stopNote.setStyle(noteStyle);
+        stopNote.visibleProperty().bind(rbInfinite.selectedProperty());
 
         // Botões
         Button btnSave   = btn("SALVAR",   "#004400", "#00cc00");
         Button btnCancel = btn("CANCELAR", "#440000", "#ff4444");
 
         btnSave.setOnAction(e -> {
-            GameConfig.infectionDuration   = clamp(tfDuration.getText(), GameConfig.infectionDuration, 5, 300);
-            GameConfig.ransomAmount        = clamp(tfRansom.getText(),   GameConfig.ransomAmount, 50, 5000);
-            GameConfig.spawnAutomatically  = cbAuto.isSelected();
-            GameConfig.minSpawnDelay       = clamp(tfMin.getText(), GameConfig.minSpawnDelay, 1, 3600);
-            GameConfig.maxSpawnDelay       = clamp(tfMax.getText(), GameConfig.maxSpawnDelay, 1, 3600);
+            GameConfig.mode             = rbInfinite.isSelected() ? GameConfig.Mode.INFINITE : GameConfig.Mode.MENU;
+            GameConfig.infiniteMinDelay = clamp(tfMin.getText(), GameConfig.infiniteMinDelay, 1, 3600);
+            GameConfig.infiniteMaxDelay = clamp(tfMax.getText(), GameConfig.infiniteMaxDelay, 1, 3600);
             GameConfig.save();
             close();
         });
@@ -79,7 +76,7 @@ public class ConfigWindow extends Stage {
         HBox buttons = new HBox(12, btnSave, btnCancel);
         buttons.setAlignment(Pos.CENTER);
 
-        VBox root = new VBox(10, title, cbAuto, grid, buttons);
+        VBox root = new VBox(10, title, duration, modeLabel, rbMenu, rbInfinite, grid, stopNote, buttons);
         root.setAlignment(Pos.CENTER_LEFT);
         root.setPadding(new Insets(18, 24, 18, 24));
         root.setStyle("-fx-background-color:#0a0a0a; -fx-border-color:#cc0000; -fx-border-width:2;");
@@ -89,6 +86,13 @@ public class ConfigWindow extends Stage {
         setScene(scene);
         sizeToScene();
         centerOnScreen();
+    }
+
+    private static RadioButton radio(String text, ToggleGroup group, String style) {
+        RadioButton rb = new RadioButton(text);
+        rb.setToggleGroup(group);
+        rb.setStyle(style);
+        return rb;
     }
 
     private static void addRow(GridPane g, int row, String lbl, TextField tf, String style) {

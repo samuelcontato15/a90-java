@@ -27,6 +27,7 @@ public class ThankYouWindow extends Stage {
         initStyle(StageStyle.UNDECORATED);
         setAlwaysOnTop(true);
         setResizable(false);
+        Assets.setIcon(this, Assets.APP_ICON);
 
         ImageView ivOkSign = new ImageView(Assets.loadImage("ok_sign.png"));
         ivOkSign.setFitWidth(200);
@@ -52,6 +53,7 @@ public class ThankYouWindow extends Stage {
         Scene scene = new Scene(root, 300, 320);
         scene.setFill(Color.BLACK);
         scene.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ESCAPE) GameEngine.forceExit(); });
+        Assets.infect(scene);
         setScene(scene);
 
         setX(fromX);

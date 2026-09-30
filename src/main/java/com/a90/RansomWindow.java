@@ -21,7 +21,7 @@ import java.util.Random;
  *
  * Mostra: face idle do A-90 + contador de valor restante + cronômetro.
  * É o alvo onde as moedas são arrastadas (CoinSprite.checkDrop faz overlap aqui).
- * GlitchIdle: tremula ±5px para ser assustador.
+ * GlitchIdle: tremula para ser assustador — cada vez mais forte a cada fase.
  */
 public class RansomWindow extends Stage {
 
@@ -36,6 +36,8 @@ public class RansomWindow extends Stage {
         initStyle(StageStyle.UNDECORATED);
         setAlwaysOnTop(true);
         setResizable(false);
+        Win32Window.tag(this); // título único e invisível (janela UNDECORATED)
+        Assets.setIcon(this, "Gold.ico");
 
         // --- A-90 idle pequeno ---
         ImageView iv = new ImageView(Assets.loadImage("ransom_idle.png"));
@@ -48,15 +50,17 @@ public class RansomWindow extends Stage {
         lblRansom     = label("",         "-fx-font-size:22; -fx-text-fill:#ffaa00; -fx-font-weight:bold;");
         lblTimer      = label("",         "-fx-font-size:34; -fx-text-fill:#ff2222; -fx-font-weight:bold;");
         lblResult     = label("",         "-fx-font-size:15; -fx-text-fill:#ffffff; -fx-font-weight:bold;");
-        Label lHint   = label("[ESC para sair]", "-fx-font-size:8; -fx-text-fill:#333333;");
+        Label lHint   = label("[ESC encerra a rodada]", "-fx-font-size:8; -fx-text-fill:#333333;");
         Label lDrop   = label("↓  jogue as moedas aqui  ↓",
                               "-fx-font-size:9; -fx-text-fill:#555555;");
 
         // bindings direto ao GameEngine
         lblRansom.textProperty().bind(
             Bindings.format("DÉBITO:  %d", GameEngine.ransomLeft));
-        lblTimer.textProperty().bind(
-            Bindings.format("%02d", GameEngine.timeLeft));
+        lblTimer.textProperty().bind(Bindings.createStringBinding(() -> {
+            int t = GameEngine.timeLeft.get();
+            return String.format("%d:%02d", t / 60, t % 60);
+        }, GameEngine.timeLeft));
 
         // timer vira vermelho pulsante <= 10s
         GameEngine.timeLeft.addListener((obs, o, n) -> {
@@ -64,7 +68,15 @@ public class RansomWindow extends Stage {
             lblTimer.setStyle(lblTimer.getStyle().replaceAll("-fx-text-fill:[^;]+", "-fx-text-fill:" + c));
         });
 
-        VBox content = new VBox(4, lTitle, iv, lblRansom, lblTimer, lDrop, lblResult, lHint);
+        // moeda ao lado do débito — mostra o que precisa ser arrastado
+        ImageView ivGold = new ImageView(Assets.loadImage("Gold.png"));
+        ivGold.setFitWidth(24);
+        ivGold.setFitHeight(24);
+        ivGold.setPreserveRatio(true);
+        HBox debt = new HBox(6, ivGold, lblRansom);
+        debt.setAlignment(Pos.CENTER);
+
+        VBox content = new VBox(4, lTitle, iv, debt, lblTimer, lDrop, lblResult, lHint);
         content.setAlignment(Pos.CENTER);
         content.setPadding(new Insets(12, 20, 12, 20));
         content.setStyle(
@@ -75,19 +87,21 @@ public class RansomWindow extends Stage {
         Scene scene = new Scene(content);
         scene.setFill(Color.TRANSPARENT);
         scene.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ESCAPE) GameEngine.forceExit(); });
+        Assets.infect(scene);
         setScene(scene);
 
-        // Posição: canto direito, 1/3 do topo
+        // Posição: canto direito, 1/3 do topo (X final ajustado pela largura real no launch)
         javafx.geometry.Rectangle2D b = javafx.stage.Screen.getPrimary().getVisualBounds();
-        baseX = b.getMaxX() - 220;
+        baseX = b.getMaxX() - 260;
         baseY = b.getMinY() + b.getHeight() * 0.3;
         setX(baseX);
         setY(baseY);
 
-        // GlitchIdle ±5px
+        // GlitchIdle — treme mais a cada fase (5px → 16px)
         glitch = new Timeline(new KeyFrame(javafx.util.Duration.millis(200), e -> {
-            setX(baseX + (rng.nextDouble() * 2 - 1) * 5);
-            setY(baseY + (rng.nextDouble() * 2 - 1) * 5);
+            double px = GameEngine.currentPhase().glitchPx;
+            setX(baseX + (rng.nextDouble() * 2 - 1) * px);
+            setY(baseY + (rng.nextDouble() * 2 - 1) * px);
         }));
         glitch.setCycleCount(Timeline.INDEFINITE);
     }
@@ -95,6 +109,9 @@ public class RansomWindow extends Stage {
     /** Mostra a janela e inicia o GlitchIdle. */
     public void launch() {
         show();
+        // Largura depende do débito (pode ter 4 dígitos): encosta na borda sem sair da tela
+        baseX = javafx.stage.Screen.getPrimary().getVisualBounds().getMaxX() - getWidth() - 20;
+        setX(baseX);
         glitch.play();
     }
 

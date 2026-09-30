@@ -21,9 +21,10 @@ import java.util.Random;
 
 /**
  * Janela de taunt — glitch popup aleatório.
- * Título aleatório, imagem aleatória, tamanho 200-400, GlitchIdle ±5px.
+ * Título aleatório, imagem aleatória, tamanho 200-400, GlitchIdle.
  * Fecha sozinha após 4-10s com som tauntLeave.
- * 2% de chance a cada 200ms de spawnar mais uma TauntWindow (divideAndTaunt).
+ * A cada 200ms tem chance de abrir mais uma TauntWindow (divideAndTaunt).
+ * Tremor e chance de multiplicar crescem a cada fase (Phase): 5px/2% → 16px/4%.
  */
 public class TauntWindow extends Stage {
 
@@ -48,6 +49,7 @@ public class TauntWindow extends Stage {
         initStyle(StageStyle.DECORATED);
         setAlwaysOnTop(true);
         setResizable(false);
+        Assets.setIcon(this, Assets.APP_ICON);
 
         double w = 200 + RNG.nextInt(200);
         double h = 200 + RNG.nextInt(200);
@@ -63,6 +65,7 @@ public class TauntWindow extends Stage {
         Pane root = new Pane(bg);
         Scene scene = new Scene(root, w, h);
         scene.setOnKeyPressed(e -> { if (e.getCode() == KeyCode.ESCAPE) GameEngine.forceExit(); });
+        Assets.infect(scene);
         setScene(scene);
 
         // Posição aleatória
@@ -83,15 +86,14 @@ public class TauntWindow extends Stage {
 
         double bX = getX(), bY = getY();
 
-        // GlitchIdle ±5px, com 2% de chance de spawnar outra janela
+        // GlitchIdle, com chance de spawnar outra janela — ambos pela fase atual.
+        // O spawn passa pelo GameEngine: respeita o teto e para quando a rodada acaba.
         glitch = new Timeline(new KeyFrame(Duration.millis(200), e -> {
             if (closed) return;
-            setX(bX + (RNG.nextDouble() * 2 - 1) * 5);
-            setY(bY + (RNG.nextDouble() * 2 - 1) * 5);
-            if (RNG.nextInt(100) < 2) {
-                TauntWindow extra = new TauntWindow();
-                extra.launch();
-            }
+            Phase p = GameEngine.currentPhase();
+            setX(bX + (RNG.nextDouble() * 2 - 1) * p.glitchPx);
+            setY(bY + (RNG.nextDouble() * 2 - 1) * p.glitchPx);
+            if (RNG.nextInt(100) < p.tauntMultiplyPct) GameEngine.spawnTaunt();
         }));
         glitch.setCycleCount(Timeline.INDEFINITE);
         glitch.play();
