@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.a90</groupId>
+    <artifactId>a90-minigame</artifactId>
+    <version>1.0</version>
+    <packaging>jar</packaging>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <javafx.version>21</javafx.version>
+    </properties>
+
+    <dependencies>
+        <!-- JavaFX — dependências genéricas para mvn javafx:run -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+
+        <!-- JavaFX — binários nativos Windows (necessários para o fat JAR / .exe) -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>win</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-graphics</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>win</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-media</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>win</classifier>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-base</artifactId>
+            <version>${javafx.version}</version>
+            <classifier>win</classifier>
+        </dependency>
+
+        <!-- JNA para trocar o wallpaper via user32.dll -->
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna-platform</artifactId>
+            <version>5.14.0</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Execução rápida via terminal -->
+            <plugin>
+                <groupId>org.openjfx</groupId>
+                <artifactId>javafx-maven-plugin</artifactId>
+                <version>0.0.8</version>
+                <configuration>
+                    <mainClass>com.a90.App</mainClass>
+                    <options>
+                        <option>--add-opens=javafx.graphics/com.sun.javafx.stage=ALL-UNNAMED</option>
+                    </options>
+                </configuration>
+            </plugin>
+
+            <!-- Fat JAR com todos os deps + nativos Windows embutidos -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals><goal>shade</goal></goals>
+                        <configuration>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <shadedArtifactAttached>false</shadedArtifactAttached>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <!-- Launcher em vez de App — requisito do fat JAR + JavaFX -->
+                                    <mainClass>com.a90.Launcher</mainClass>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <!-- Remove module-info para evitar conflito no fat JAR -->
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
