@@ -17,12 +17,6 @@ import javafx.util.Duration;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Full-screen crash background shown during the ransom phase.
- * Cycles through glitch/static images every 200 ms — no A-90 face, just visual chaos.
- * Click-through and always-on-top; appears above Wallpaper Engine without touching the
- * system wallpaper. Closing this window restores whatever was behind it automatically.
- */
 class RansomBackground extends Stage {
 
     private static final List<String> CRASH_IMAGES = List.of(

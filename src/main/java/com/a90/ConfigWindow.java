@@ -12,11 +12,6 @@ import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-/**
- * Janela de configuração simples.
- * Não inclui CrashOnDeath / ExecCMD — apenas parâmetros de jogo.
- * Modo ao terminar a rodada: voltar ao menu, ou infinito (o A-90 volta sozinho).
- */
 public class ConfigWindow extends Stage {
 
     public ConfigWindow(Stage owner) {
@@ -36,7 +31,6 @@ public class ConfigWindow extends Stage {
         Label duration = new Label("Duração: 1:30 (fixa)");
         duration.setStyle(labelStyle);
 
-        // Modo ao terminar a rodada
         Label modeLabel = new Label("Ao terminar a rodada:");
         modeLabel.setStyle(labelStyle);
         ToggleGroup modes = new ToggleGroup();
@@ -44,7 +38,6 @@ public class ConfigWindow extends Stage {
         RadioButton rbInfinite = radio("modo infinito (o A-90 volta sozinho)", modes, labelStyle);
         (GameConfig.mode == GameConfig.Mode.INFINITE ? rbInfinite : rbMenu).setSelected(true);
 
-        // Intervalo entre ataques do modo infinito
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(8);
@@ -60,7 +53,6 @@ public class ConfigWindow extends Stage {
         stopNote.setStyle(noteStyle);
         stopNote.visibleProperty().bind(rbInfinite.selectedProperty());
 
-        // Botões
         Button btnSave   = btn("SALVAR",   "#004400", "#00cc00");
         Button btnCancel = btn("CANCELAR", "#440000", "#ff4444");
 

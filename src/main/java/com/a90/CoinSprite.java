@@ -20,16 +20,6 @@ import javafx.util.Duration;
 
 import java.util.function.Consumer;
 
-/**
- * Moeda arrastável — janela transparente always-on-top sobre o desktop.
- * Cada tipo tem valor diferente (CoinType). O label mostra o valor em cima da imagem.
- *
- * Arrasto: segue o ponteiro global até o botão ser solto de fato, em vez de depender
- * de onMouseDragged — com popups abrindo e roubando o foco o tempo todo, a janela
- * pode perder a captura do mouse no meio do arrasto.
- * Drop: ao soltar, checa sobreposição com RansomWindow → chama onDropped.
- * Nas fases finais a moeda pula de lugar (jumpTo) enquanto não estiver sendo arrastada.
- */
 public class CoinSprite extends Stage {
 
     private static final int SM_SWAPBUTTON = 23;
@@ -52,14 +42,12 @@ public class CoinSprite extends Stage {
         Assets.setIcon(this, type.image);
         Win32Window.tag(this);
 
-        // --- imagem ---
         double size = coinSize(type);
         ImageView iv = new ImageView(Assets.loadImage(type.image));
         iv.setFitWidth(size);
         iv.setFitHeight(size);
         iv.setPreserveRatio(true);
 
-        // --- label de valor ---
         Label lbl = new Label(type.label());
         lbl.setStyle("-fx-font-family:'Courier New'; -fx-font-size:11; -fx-font-weight:bold; " +
                      "-fx-text-fill:" + type.labelColor() + "; " +
@@ -92,10 +80,7 @@ public class CoinSprite extends Stage {
         setY(y);
     }
 
-    /** true enquanto o jogador segura a moeda — ela não pula de lugar. */
     boolean isHeld() { return held; }
-
-    /** Pula para outra posição e volta para cima dos popups. */
     void jumpTo(double x, double y) {
         setX(x);
         setY(y);
@@ -128,13 +113,12 @@ public class CoinSprite extends Stage {
         }
     }
 
-    /** Estado real do botão principal (respeita mouse de canhoto). */
     private static boolean primaryButtonDown() {
         try {
             boolean swapped = User32.INSTANCE.GetSystemMetrics(SM_SWAPBUTTON) != 0;
             return (User32.INSTANCE.GetAsyncKeyState(swapped ? VK_RBUTTON : VK_LBUTTON) & 0x8000) != 0;
         } catch (Throwable t) {
-            return true; // sem JNA: o fim do arrasto vem só do onMouseReleased
+            return true;
         }
     }
 
@@ -144,7 +128,6 @@ public class CoinSprite extends Stage {
         super.close();
     }
 
-    /** Moedas maiores para valores maiores — feedback visual imediato. */
     private static double coinSize(CoinType t) {
         return switch (t) {
             case GOLD1    -> 56;

@@ -12,38 +12,24 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 
-/**
- * Entry point.
- * Registra shutdown hook (wallpaper restaurado ao sair) e recupera o wallpaper
- * de uma execução que foi morta no meio da rodada.
- * Registra o atalho global que fecha o app (necessário para parar o modo infinito).
- * Mostra tela de início com "INICIAR", configuração e sair.
- * No modo MENU, ao fim de cada rodada o GameEngine volta para esta tela.
- */
 public class App extends Application {
 
     private static boolean killSwitchOk;
 
     @Override
     public void start(Stage primaryStage) {
-        // Trava de segurança: wallpaper volta ao sair (ESC, atalho, fim do app)...
         Runtime.getRuntime().addShutdownHook(new Thread(WallpaperManager::restore,
                 "wallpaper-restore-hook"));
-        // ...e, se o processo foi morto pelo Gerenciador de Tarefas, volta agora
         WallpaperManager.recoverFromCrash();
 
         Platform.setImplicitExit(false);
         GameConfig.load();
         Assets.preload();
         killSwitchOk = KillSwitch.register(App::quit);
-
-        // Modo MENU: ao fim de cada rodada volta para a tela de início
-        // (Stage novo: initStyle() só pode ser chamado uma vez por Stage)
         GameEngine.onReturnToMenu = () -> showStartScreen(new Stage());
         showStartScreen(primaryStage);
     }
 
-    /** Fecha o app de vez — o shutdown hook restaura o wallpaper. */
     static void quit() {
         System.exit(0);
     }

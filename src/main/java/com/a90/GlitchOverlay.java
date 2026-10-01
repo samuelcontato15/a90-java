@@ -24,31 +24,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Camada de glitch sobre a tela inteira — a "poluição visual" do resgate.
- *
- * A intensidade sobe com o tempo: no começo é quase imperceptível, no último terço
- * a tela vira uma bagunça de estática, faixas rasgadas das imagens de glitch,
- * separação de cor, scanlines e inversões. Cada troca de fase dá um pico (burst).
- *
- * A janela é click-through (ver Win32Window): é só pintura, cliques atravessam.
- * Ela cobre apenas a área útil da tela, deixando a barra de tarefas visível, e o
- * ESC / o atalho global continuam valendo porque ela nunca recebe foco.
- *
- * MAX_* limitam o quanto a tela chega a sujar: o jogo tem que continuar jogável
- * no pico. Suba esses valores para deixar a fase final mais agressiva.
- */
 public class GlitchOverlay extends Stage {
 
-    /** Tetos no pico de intensidade (1.0 = fim da rodada). Suba para sujar ainda mais. */
-    private static final double MAX_STATIC    = 0.50;  // opacidade da estática
+    private static final double MAX_STATIC    = 0.50;
     private static final double MAX_VIGNETTE  = 0.75;
     private static final double MAX_SCANLINES = 0.35;
-    private static final int    MAX_TEARS     = 16;    // faixas rasgadas simultâneas
-    private static final int    MAX_CHROMA    = 6;     // faixas de cor deslocada
+    private static final int    MAX_TEARS     = 16;
+    private static final int    MAX_CHROMA    = 6;
 
-    /** Quadros de intervalo mínimo entre piscadas de tela cheia (60ms cada). */
-    private static final int    FLASH_GAP_TICKS = 7;   // ~0,42s → no máx. ~2,4 flashes/s
+    private static final int FLASH_GAP_TICKS = 7;
 
     private static final List<String> GLITCH_IMAGES = List.of(
         "Taunts/glitch1.jpg", "Taunts/glitch2.jpeg", "Taunts/glitch3.jpg",
@@ -74,10 +58,9 @@ public class GlitchOverlay extends Stage {
     private final List<Image>     sources = new ArrayList<>();
     private final Timeline        tick;
 
-    /** 0 = limpo, 1 = pico. Definido pelo GameEngine conforme o tempo passa. */
     private double intensity;
-    private double burst;      // pico temporário nas trocas de fase
-    private int    ticksToTop; // reergue a camada acima das moedas/popups de tempos em tempos
+    private double burst;
+    private int    ticksToTop;
     private int    flashCooldown;
 
     public GlitchOverlay() {
@@ -95,9 +78,6 @@ public class GlitchOverlay extends Stage {
             if (img != null && !img.isError()) sources.add(img);
         }
 
-        // Estática ladrilhada no tamanho nativo, com uma fileira/coluna extra para
-        // cobrir o deslocamento. Esticar o GIF 480x360 para a tela inteira deixava
-        // faixas sem ruído, e o ImagePattern não ladrilhava para a esquerda.
         Image tile = Assets.loadImage("static.gif");
         tileW = tile != null && tile.getWidth()  > 0 ? tile.getWidth()  : w;
         tileH = tile != null && tile.getHeight() > 0 ? tile.getHeight() : h;
@@ -127,7 +107,7 @@ public class GlitchOverlay extends Stage {
             ImageView iv = new ImageView();
             iv.setVisible(false);
             iv.setPreserveRatio(false);
-            iv.setSmooth(false); // pixelado combina com o efeito e é mais barato
+            iv.setSmooth(false);
             tears.add(iv);
             tearPane.getChildren().add(iv);
         }
@@ -138,7 +118,6 @@ public class GlitchOverlay extends Stage {
             chromaPane.getChildren().add(r);
         }
 
-        // O JavaFX não tem repeating-linear-gradient: o repeat é um modo do linear-gradient
         scanlines = new Region();
         scanlines.setPrefSize(w, h);
         scanlines.setStyle("-fx-background-color: linear-gradient("
@@ -149,7 +128,7 @@ public class GlitchOverlay extends Stage {
         invertFlash = new Region();
         invertFlash.setPrefSize(w, h);
         invertFlash.setStyle("-fx-background-color: white;");
-        invertFlash.setBlendMode(BlendMode.DIFFERENCE); // inverte o que está embaixo
+        invertFlash.setBlendMode(BlendMode.DIFFERENCE);
         invertFlash.setOpacity(0);
 
         faceFlash = new ImageView();
@@ -168,39 +147,31 @@ public class GlitchOverlay extends Stage {
         setX(b.getMinX());
         setY(b.getMinY());
 
-        // ~16 fps: glitch fica melhor picotado, e custa pouco
         tick = new Timeline(new KeyFrame(Duration.millis(60), e -> paint()));
         tick.setCycleCount(Animation.INDEFINITE);
     }
 
-    /** Mostra a camada, torna-a click-through e começa a animar. */
     public void launch() {
         show();
         Win32Window.clickThrough(this);
         tick.play();
     }
 
-    /** 0 no início da rodada, 1 no fim. */
     public void setIntensity(double t) {
         intensity = Math.clamp(t, 0, 1);
     }
 
-    /** Pico curto de glitch — usado na troca de cada layer. */
     public void burst() {
         burst = 1.0;
         Assets.playSound("tauntSpawn.wav");
     }
 
-    // ──────────────────────────────────────────────────────
-
     private void paint() {
-        // Curva: quase nada no começo, explode no último terço
         double k = Math.min(1.0, Math.pow(intensity, 1.6) + burst);
-        burst = Math.max(0, burst - 0.12); // o pico decai em ~0,5s
+        burst = Math.max(0, burst - 0.12);
 
-        // Moedas e popups que sobem para a frente ficariam por cima do glitch
         if (--ticksToTop <= 0) {
-            ticksToTop = 8; // ~0,5s
+            ticksToTop = 8;
             Win32Window.raise(this);
         }
 
@@ -211,10 +182,6 @@ public class GlitchOverlay extends Stage {
         paintTears(k);
         paintChroma(k);
 
-        // Piscadas de tela cheia (inversão de cor e rosto). Elas são limitadas a no
-        // máximo uma a cada FLASH_GAP_TICKS para ficar abaixo de 3 flashes por segundo,
-        // o limiar usual de risco para epilepsia fotossensível. Não suba isso sem
-        // considerar quem vai jogar.
         if (flashCooldown > 0) {
             flashCooldown--;
             invertFlash.setOpacity(0);
@@ -225,7 +192,6 @@ public class GlitchOverlay extends Stage {
             flashCooldown = FLASH_GAP_TICKS;
         } else {
             invertFlash.setOpacity(0);
-            // Rosto piscando em tela cheia — só no terço final
             if (k > 0.55 && RNG.nextDouble() < 0.08) {
                 flashFace();
                 flashCooldown = FLASH_GAP_TICKS;
@@ -233,7 +199,6 @@ public class GlitchOverlay extends Stage {
         }
     }
 
-    /** Desloca o ladrilho inteiro a cada quadro — o ruído "anda" na tela. */
     private void paintStatic(double k) {
         staticLayer.setOpacity(MAX_STATIC * k);
         staticLayer.setTranslateX(-RNG.nextDouble() * tileW);
@@ -250,14 +215,13 @@ public class GlitchOverlay extends Stage {
             }
             Image src = sources.get(RNG.nextInt(sources.size()));
 
-            // Fatia horizontal aleatória da imagem de origem, esticada na largura da tela
             double sliceH = 8 + RNG.nextDouble() * 90;
             double sliceY = RNG.nextDouble() * Math.max(1, src.getHeight() - sliceH);
             iv.setImage(src);
             iv.setViewport(new Rectangle2D(0, sliceY, src.getWidth(), sliceH));
 
             double barH = 6 + RNG.nextDouble() * 70 * k;
-            iv.setFitWidth(w * 1.35);            // overscan: o deslocamento não deixa buraco
+            iv.setFitWidth(w * 1.35);
             iv.setFitHeight(barH);
             iv.setLayoutX(-w * 0.175 + (RNG.nextDouble() * 2 - 1) * 180 * k);
             iv.setLayoutY(RNG.nextDouble() * h);
@@ -272,7 +236,6 @@ public class GlitchOverlay extends Stage {
         }
     }
 
-    /** Faixas vermelhas/ciano deslocadas — leem como separação de canal de cor. */
     private void paintChroma(double k) {
         int active = (int) Math.round(MAX_CHROMA * k);
         for (int i = 0; i < chroma.size(); i++) {

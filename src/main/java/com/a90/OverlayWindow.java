@@ -17,26 +17,16 @@ import javafx.util.Duration;
 
 import java.util.Random;
 
-/**
- * Overlay full-screen transparente — fases 1 e 2.
- *
- * Fase 1 (Warning):  face idle aparece em pos aleatória → centraliza + placa STOP
- *                    sobre a vinheta vermelha.
- * Fase 2 (Download): jumpscare (img_attack shakendo) → tela "DOWNLOADING..." com
- *                    CD girando e barra de 10 segmentos acendendo progressivamente.
- * Encerra em fase 3: esconde-se e cede controle ao RansomWindow + CoinSprites.
- */
 public class OverlayWindow extends Stage {
 
     private final StackPane root;
-    private final StackPane canvas;     // centralizado; posições via translate
+    private final StackPane canvas;
     private final ImageView imgIdle;
     private final ImageView imgAttack;
     private final ImageView imgStopSign;
     private final ImageView imgStatic;
     private final ImageView imgVignette;
 
-    // Download bar
     private final HBox      downloadPanel;
     private final Label     txtDownload;
     private final RotateTransition cdSpin;
@@ -49,12 +39,10 @@ public class OverlayWindow extends Stage {
         initStyle(StageStyle.TRANSPARENT);
         setAlwaysOnTop(true);
         setResizable(false);
-        Assets.setIcon(this, "CD-1.ico"); // o "instalador" do A-90
+        Assets.setIcon(this, "CD-1.ico");
 
         Rectangle2D full = Screen.getPrimary().getBounds();
 
-        // ---- imagens ----
-        // O jumpscare ocupa a maior parte da altura da tela — 280px sumia num monitor grande
         double jumpH = full.getHeight() * 0.78;
         imgIdle     = makeIV("ransom_idle.png",    220, 220);
         imgAttack   = makeIV("ransom_attack.gif",  jumpH, jumpH);
@@ -70,7 +58,6 @@ public class OverlayWindow extends Stage {
         imgAttack.setOpacity(0);
         imgStopSign.setOpacity(0);
 
-        // ---- barra de download ----
         txtDownload = new Label("DOWNLOADING");
         txtDownload.setStyle("-fx-font-family:'Courier New'; -fx-font-size:28; " +
                              "-fx-text-fill:white; -fx-font-weight:bold;");
@@ -84,7 +71,6 @@ public class OverlayWindow extends Stage {
             segsBox.getChildren().add(segments[i]);
         }
 
-        // CD-1 girando ao lado do texto — a "mídia de instalação"
         ImageView imgCd = makeIV("CD-1.png", 96, 96);
         cdSpin = new RotateTransition(Duration.millis(600), imgCd);
         cdSpin.setByAngle(360);
@@ -99,7 +85,6 @@ public class OverlayWindow extends Stage {
         downloadVbox.setAlignment(Pos.CENTER);
         downloadPanel.getChildren().addAll(imgCd, downloadVbox);
 
-        // ---- canvas e root ----
         canvas = new StackPane(imgStatic, imgVignette, imgIdle, imgAttack, imgStopSign);
         canvas.setPickOnBounds(false);
         canvas.setMouseTransparent(true);
@@ -114,9 +99,6 @@ public class OverlayWindow extends Stage {
         setY(full.getMinY());
     }
 
-    // ─────────────────── FASE 1: WARNING ───────────────────
-
-    /** Mostra face idle em posição aleatória. */
     public void showIdleRandom() {
         Rectangle2D b = Screen.getPrimary().getVisualBounds();
         double x = 40 + RNG.nextDouble() * (b.getWidth()  - 280);
@@ -126,7 +108,6 @@ public class OverlayWindow extends Stage {
         imgIdle.setOpacity(1);
     }
 
-    /** Centraliza face + placa STOP, fundo vermelho escuro. */
     public void showWarningCenter() {
         imgIdle.setTranslateX(0);
         imgIdle.setTranslateY(50);
@@ -138,7 +119,6 @@ public class OverlayWindow extends Stage {
                 Color.rgb(40, 0, 0), null, null)));
     }
 
-    /** Esconde a fase de warning, flash vermelho breve. */
     public void flashAndHideWarning(boolean mouseMoved) {
         imgStopSign.setOpacity(0);
         imgVignette.setOpacity(0);
@@ -152,12 +132,9 @@ public class OverlayWindow extends Stage {
         clear.play();
     }
 
-    // ─────────────────── FASE 2: JUMPSCARE ───────────────────
-
-    /** Jumpscare: o rosto salta em tela cheia, tremendo, sobre fundo vermelho. */
     public void showJumpscare(Runnable onDone) {
         punchIn(1.0);
-        shakeTimeline = shake(40, 55); // 800ms
+        shakeTimeline = shake(40, 55);
         shakeTimeline.setOnFinished(e -> {
             imgAttack.setOpacity(0);
             imgStatic.setOpacity(0);
@@ -168,7 +145,6 @@ public class OverlayWindow extends Stage {
         shakeTimeline.play();
     }
 
-    /** Estado comum aos dois jumpscares: rosto visível, estática, vinheta, fundo vermelho. */
     private void punchIn(double startScale) {
         imgAttack.setOpacity(1);
         imgAttack.setTranslateX(0);
@@ -178,7 +154,6 @@ public class OverlayWindow extends Stage {
         root.setBackground(new Background(new BackgroundFill(
                 Color.rgb(120, 0, 0), null, null)));
 
-        // Soco de zoom: entra menor e estoura para além do tamanho final
         ScaleTransition punch = new ScaleTransition(Duration.millis(220), imgAttack);
         punch.setFromX(startScale * 0.55);
         punch.setFromY(startScale * 0.55);
@@ -188,7 +163,6 @@ public class OverlayWindow extends Stage {
         punch.play();
     }
 
-    /** Tremor do rosto: `cycles` quadros de 20ms com amplitude `amp` em px. */
     private Timeline shake(int cycles, double amp) {
         Timeline tl = new Timeline(new KeyFrame(Duration.millis(20), e -> {
             imgAttack.setTranslateX((RNG.nextDouble() * 2 - 1) * amp);
@@ -198,9 +172,8 @@ public class OverlayWindow extends Stage {
         return tl;
     }
 
-    /** Animação "DOWNLOADING..." com CD girando e 10 segmentos acendendo. */
     public void showDownloading(Runnable onDone) {
-        Assets.infect(getScene()); // a partir daqui o PC está "infectado"
+        Assets.infect(getScene());
         txtDownload.setTranslateX(0);
         downloadPanel.setOpacity(1);
         imgStatic.setOpacity(0.05);
@@ -208,7 +181,6 @@ public class OverlayWindow extends Stage {
 
         Color segColor = Color.web("#cc0000");
 
-        // Segmentos acendem 1 a 1 (120ms cada = 1200ms total)
         SequentialTransition seq = new SequentialTransition();
         for (int i = 0; i < 10; i++) {
             final int idx = i;
@@ -217,11 +189,9 @@ public class OverlayWindow extends Stage {
             seq.getChildren().add(pt);
         }
 
-        // Texto piscando "DOWNLOADING."/"DOWNLOADING.."
         Timeline dots = dotBlinkTimeline();
         dots.play();
 
-        // Shake no texto
         Timeline textShake = new Timeline(new KeyFrame(Duration.millis(40), e ->
             txtDownload.setTranslateX((RNG.nextDouble() * 2 - 1) * 5)));
         textShake.setCycleCount(40);
@@ -244,14 +214,11 @@ public class OverlayWindow extends Stage {
         seq.play();
     }
 
-    // ─────────────────── LOSE JUMPSCARE ───────────────────
-
-    /** Jumpscare de morte (tempo esgotado). Mais forte que o da instalação. */
     public void showCrashJumpscare(Runnable onDone) {
         Assets.playSound("attack.wav");
         punchIn(1.15);
 
-        shakeTimeline = shake(50, 70); // 1s
+        shakeTimeline = shake(50, 70);
         Timeline shake = shakeTimeline;
         shake.setOnFinished(e -> {
             imgAttack.setOpacity(0);
@@ -263,13 +230,6 @@ public class OverlayWindow extends Stage {
         shake.play();
     }
 
-    // ─────────────────── PC FREEZE ───────────────────
-
-    /**
-     * 2-second "frozen PC" effect: jumpscare frame stuck on screen, heavy static,
-     * background color-strobing, image stuttering. Stored in shakeTimeline so close()
-     * stops it cleanly if the player presses ESC mid-freeze.
-     */
     public void showFreeze(Runnable onDone) {
         imgAttack.setOpacity(1);
         imgAttack.setTranslateX(0);
@@ -286,7 +246,7 @@ public class OverlayWindow extends Stage {
             int r = 60 + RNG.nextInt(120);
             root.setBackground(new Background(new BackgroundFill(Color.rgb(r, RNG.nextInt(15), 0), null, null)));
         }));
-        freeze.setCycleCount(40); // 40 × 50ms = 2s
+        freeze.setCycleCount(40);
         freeze.setOnFinished(e -> {
             imgAttack.setOpacity(0);
             imgStatic.setOpacity(0);
@@ -297,11 +257,9 @@ public class OverlayWindow extends Stage {
             if (onDone != null) onDone.run();
         });
 
-        shakeTimeline = freeze; // close() will stop it on ESC
+        shakeTimeline = freeze;
         freeze.play();
     }
-
-    // ─────────────────── helpers ───────────────────
 
     private ImageView makeIV(String name, double w, double h) {
         Image img = Assets.loadImage(name);

@@ -2,7 +2,7 @@
 
 An educational recreation of the A-90 minigame from DOORS: Archives, built in pure Java.
 
-The system wallpaper is only touched once: on a loss, it switches to the ransom image for 3 seconds as the app closes, then restores automatically via the shutdown hook.
+The system wallpaper is **never touched**. On a loss, a full-screen crash-image window covers the desktop for 3 seconds, then the app closes and the window disappears — Wallpaper Engine and normal desktops resume instantly.
 
 ## Gameplay
 
@@ -10,7 +10,7 @@ The system wallpaper is only touched once: on a loss, it switches to the ransom 
 2. **Install** — Jumpscare, then a "DOWNLOADING…" screen with a spinning CD.
 3. **Ransom (1:18)** — Popup windows flood the screen and coins scatter across the desktop. Drag coins to the A-90 window to pay off the debt. Every 26 s the music escalates and the game intensifies.
 4. **Win** — Paid in full: "THANK YOU" animation, then the start screen.
-5. **Lose** — Crash jumpscare, wallpaper switches to the ransom image for 3 seconds, app closes.
+5. **Lose** — Crash jumpscare, freeze effect, crash-image window fills the screen for 3 seconds, app closes.
 
 ## Phases
 
@@ -57,13 +57,13 @@ A click-through full-screen layer pollutes the image continuously during the ran
 
 ## Wallpaper
 
-The system wallpaper is **not changed during the game**. It changes only on a loss:
+The system wallpaper is **never touched**. On a loss:
 
-1. Crash jumpscare plays.
-2. Wallpaper switches to `ransom_attack.png`.
-3. After 3 seconds the app closes and the shutdown hook restores the original wallpaper.
+1. Crash jumpscare + 2-second freeze effect.
+2. A full-screen window cycling through glitch/crash images opens.
+3. After 3 seconds the app closes; the window closes with it, revealing whatever was behind it.
 
-This approach is Wallpaper Engine–compatible: the animated wallpaper is visible through the game windows during play and resumes normally if the player wins or exits early.
+Wallpaper Engine users see their animated wallpaper resume immediately. No restore logic needed.
 
 ## Modes
 

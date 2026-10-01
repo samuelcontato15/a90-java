@@ -8,20 +8,12 @@ import java.io.ByteArrayInputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
-/**
- * Decodificador mínimo de .ico / .cur — o JavaFX não lê esses formatos.
- *
- * Escolhe a maior entrada do arquivo. Suporta entradas PNG (ícones 256x256 modernos)
- * e DIB/BMP de 1, 4, 8, 24 e 32 bits com máscara AND.
- * Para .cur (tipo 2) também devolve o hotspot do cursor.
- */
 final class IcoDecoder {
 
     record Icon(Image image, int hotspotX, int hotspotY) {}
 
     private IcoDecoder() {}
 
-    /** Retorna null se o arquivo não for um ICO/CUR válido. */
     static Icon decode(byte[] data) {
         try {
             ByteBuffer b = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN);
@@ -29,7 +21,6 @@ final class IcoDecoder {
             int count = Short.toUnsignedInt(b.getShort(4));
             if (b.getShort(0) != 0 || (type != 1 && type != 2) || count == 0) return null;
 
-            // Maior entrada (área) vence
             int best = 6;
             long bestArea = -1;
             for (int i = 0; i < count; i++) {
@@ -58,11 +49,10 @@ final class IcoDecoder {
         return d == 0 ? 256 : d;
     }
 
-    /** DIB de ícone: BITMAPINFOHEADER + [paleta] + bitmap XOR + máscara AND (ambos bottom-up). */
     private static Image decodeDib(ByteBuffer b, int off) {
         int hdrSize = b.getInt(off);
         int w       = b.getInt(off + 4);
-        int h       = Math.abs(b.getInt(off + 8)) / 2; // altura inclui a máscara AND
+        int h       = Math.abs(b.getInt(off + 8)) / 2;
         int bpp     = b.getShort(off + 14);
         int clrUsed = b.getInt(off + 32);
 
@@ -98,12 +88,10 @@ final class IcoDecoder {
             }
         }
 
-        // 32 bits com alfa zerado (ícones legados) é tratado como opaco
         if (bpp == 32 && !anyAlpha) {
             for (int i = 0; i < argb.length; i++) argb[i] |= 0xFF000000;
         }
 
-        // 32 bits com canal alfa real ignora a máscara; demais formatos (ou alfa zerado) usam a máscara AND
         boolean useMask = hasAnd && !(bpp == 32 && anyAlpha);
         if (useMask) {
             for (int y = 0; y < h; y++) {

@@ -15,69 +15,34 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Máquina de estados — fiel ao fluxo original:
- *
- *  IDLE → trigger (botão INICIAR, ou o agendamento do modo infinito)
- *  ↓
- *  PHASE_1_WARNING
- *    Face idle aparece aleatória → centro + stop sign + vinheta vermelha + spy de mouse 500ms
- *    Se mouse NÃO moveu → dodge: a rodada termina sem resgate
- *    Se moveu → PHASE_2_DOWNLOAD
- *  ↓
- *  PHASE_2_DOWNLOAD
- *    Jumpscare + tela "DOWNLOADING..." com CD girando e barra de 10 segmentos (install.wav)
- *  ↓
- *  PHASE_3_RANSOM — sempre 1:30, em 3 fases de 30s, uma layer da OST cada (ver Phase)
- *    CALM → TENSE → DESPERATE: cada troca de layer traz uma nova leva de moedas,
- *    mais popups e moedas pulando de lugar até serem pegas.
- *    O débito só fecha com moedas da última leva, então toda rodada chega à fase final.
- *    - Moeda entregue: ransomLeft -= valor (+ brilho Starlight) → if ransomLeft <= 0: WIN
- *    - Timer esgota: LOSE
- *  ↓
- *  WIN  → ThankYouWindow → cleanup
- *  LOSE → CrashJumpscare → cleanup
- *  cleanup → volta ao menu (modo MENU) ou novo ataque após intervalo aleatório (modo INFINITE)
- *
- * ESC: forceExit() encerra a rodada atual em qualquer fase.
- * Ctrl+Alt+Shift+A (KillSwitch): fecha o app inteiro, inclusive no modo infinito.
- */
 public class GameEngine {
 
-    static final int ROUND_SECONDS = 78;  // 3 × 26s — one layer per phase, no gaps
-    static final int PHASE_SECONDS = ROUND_SECONDS / Phase.values().length; // 30s por layer
+    static final int ROUND_SECONDS = 78;
+    static final int PHASE_SECONDS = ROUND_SECONDS / Phase.values().length;
     private static final int COINS_PER_WAVE = 7;
-    private static final int MAX_TAUNTS     = 30;  // teto de popups abertos ao mesmo tempo
+    private static final int MAX_TAUNTS     = 30;
 
-    // Propriedades observáveis (RansomWindow faz binding)
-    static final IntegerProperty timeLeft    = new SimpleIntegerProperty(0);
-    static final IntegerProperty ransomLeft  = new SimpleIntegerProperty(0);
+    static final IntegerProperty timeLeft   = new SimpleIntegerProperty(0);
+    static final IntegerProperty ransomLeft = new SimpleIntegerProperty(0);
 
-    /** App registra aqui o que fazer ao fim de cada rodada no modo MENU (volta pra tela de início). */
-    static Runnable onReturnToMenu = Platform::exit; // fallback: fecha o app
+    static Runnable onReturnToMenu = Platform::exit;
 
     private static final Random           RNG     = new Random();
     private static final List<CoinSprite>  coins   = new ArrayList<>();
     private static final List<TauntWindow> taunts  = new ArrayList<>();
-    /** Timers da rodada inteira (fases, cronômetro, spawns atrasados). */
     private static final List<Animation>   roundTimers = new ArrayList<>();
-    /** Repetidores da fase atual (popups periódicos, pulos de moeda) — trocados a cada fase. */
     private static final List<Animation>   phaseTimers = new ArrayList<>();
 
-    private static OverlayWindow   overlay;
-    private static GlitchOverlay   glitch;
-    private static RansomWindow    ransomWindow;
-    private static MusicPlayer     music;
-    private static PauseTransition pendingEnd;
-    private static Phase           phase = Phase.CALM;
-    private static boolean         gameOver     = false;
-    private static boolean         quitOnCleanup = false;
+    private static OverlayWindow    overlay;
+    private static GlitchOverlay    glitch;
+    private static RansomWindow     ransomWindow;
+    private static RansomBackground loseBackground;
+    private static MusicPlayer      music;
+    private static PauseTransition  pendingEnd;
+    private static Phase            phase = Phase.CALM;
+    private static boolean          gameOver      = false;
+    private static boolean          quitOnCleanup = false;
 
-    // ──────────────────────────────────────────────────────
-    //                     ENTRY POINTS
-    // ──────────────────────────────────────────────────────
-
-    /** Chamado pelo botão na tela de início ou pelo agendamento do modo infinito. */
     public static void start() {
         GameConfig.load();
         overlay = new OverlayWindow();
@@ -86,7 +51,6 @@ public class GameEngine {
         phaseWarning();
     }
 
-    /** ESC — encerra a rodada atual em qualquer fase. */
     public static void forceExit() {
         gameOver = true;
         stopRound();
@@ -95,33 +59,24 @@ public class GameEngine {
 
     static Phase currentPhase() { return phase; }
 
-    // ──────────────────────────────────────────────────────
-    //                FASE 1 — WARNING
-    // ──────────────────────────────────────────────────────
-
     private static void phaseWarning() {
         gameOver = false;
         Assets.playSound("spawn.wav");
 
-        // Face idle em posição aleatória — 500ms
         overlay.showIdleRandom();
         PauseTransition t1 = new PauseTransition(Duration.millis(500));
         t1.setOnFinished(e -> {
-            // Spy: registra posição do mouse
             Point before = mousePos();
-            // Centraliza + stop sign — 500ms (spy phase)
             overlay.showWarningCenter();
             PauseTransition t2 = new PauseTransition(Duration.millis(500));
             t2.setOnFinished(ev -> {
                 boolean moved = !mousePos().equals(before);
                 overlay.flashAndHideWarning(moved);
                 if (moved) {
-                    // Pequena pausa antes do jumpscare
                     PauseTransition t3 = new PauseTransition(Duration.millis(100));
                     t3.setOnFinished(e2 -> phaseDownload());
                     t3.play();
                 } else {
-                    // Dodgou — a rodada termina sem resgate (menu ou próximo ataque)
                     PauseTransition reset = new PauseTransition(Duration.millis(300));
                     reset.setOnFinished(e2 -> cleanup());
                     reset.play();
@@ -131,10 +86,6 @@ public class GameEngine {
         });
         t1.play();
     }
-
-    // ──────────────────────────────────────────────────────
-    //                FASE 2 — DOWNLOAD
-    // ──────────────────────────────────────────────────────
 
     private static void phaseDownload() {
         Assets.playSound("attack.wav");
@@ -147,26 +98,18 @@ public class GameEngine {
         });
     }
 
-    // ──────────────────────────────────────────────────────
-    //                FASE 3 — RANSOM
-    // ──────────────────────────────────────────────────────
-
     private static void phaseRansom() {
-        // A leva de moedas de cada fase é sorteada já aqui, para o débito ser conhecido
         List<List<CoinType>> waves = new ArrayList<>();
         for (int i = 0; i < Phase.values().length; i++) waves.add(rollWave());
         ransomLeft.set(debtFor(waves));
         timeLeft.set(ROUND_SECONDS);
 
-        // RansomWindow antes das moedas: elas não podem nascer embaixo dela
         ransomWindow = new RansomWindow();
         ransomWindow.launch();
 
-        // Camada de glitch sobre tudo — vai sujando a tela conforme o tempo passa
         glitch = new GlitchOverlay();
         glitch.launch();
 
-        // Uma fase a cada 30s, cada uma com sua layer
         Timeline phases = new Timeline();
         for (Phase p : Phase.values()) {
             List<CoinType> wave = waves.get(p.ordinal());
@@ -175,11 +118,9 @@ public class GameEngine {
         }
         track(roundTimers, phases);
 
-        // Cronômetro regressivo
         Timeline countdown = new Timeline(new KeyFrame(Duration.seconds(1), e -> {
             int t = timeLeft.get() - 1;
             timeLeft.set(t);
-            // Glitch sobe continuamente: 0 no início da rodada, 1 no fim
             if (glitch != null) glitch.setIntensity(1.0 - (double) t / ROUND_SECONDS);
             if (t <= 0) lose();
         }));
@@ -187,7 +128,6 @@ public class GameEngine {
         track(roundTimers, countdown);
     }
 
-    /** Troca de layer: o jogo fica mais tenso. */
     private static void enterPhase(Phase p, List<CoinType> wave) {
         if (gameOver) return;
         phase = p;
@@ -203,11 +143,6 @@ public class GameEngine {
         if (p.coinJumpEveryMs > 0) track(phaseTimers, repeat(p.coinJumpEveryMs, GameEngine::shuffleCoins));
     }
 
-    // ──────────────────────────────────────────────────────
-    //                  COIN MANAGEMENT
-    // ──────────────────────────────────────────────────────
-
-    /** 7 moedas (tipos ponderados) + HoneyPot com 30% de chance. */
     private static List<CoinType> rollWave() {
         List<CoinType> wave = new ArrayList<>();
         for (int i = 0; i < COINS_PER_WAVE; i++) wave.add(CoinType.weightedRandom());
@@ -219,10 +154,6 @@ public class GameEngine {
         return wave.stream().mapToInt(t -> t.value).sum();
     }
 
-    /**
-     * Débito = tudo das levas anteriores + metade (arredondada pra cima) da última:
-     * impossível pagar antes da fase final, mas sobra folga para deixar moedas para trás.
-     */
     static int debtFor(List<List<CoinType>> waves) {
         int last = waveValue(waves.getLast());
         int debt = last - last / 2;
@@ -230,14 +161,13 @@ public class GameEngine {
         return debt;
     }
 
-    /** Moedas aparecem uma a cada 400ms; a HoneyPot chega 3,5s depois. */
     private static void spawnWave(List<CoinType> wave) {
         for (int i = 0; i < wave.size(); i++) {
             CoinType type = wave.get(i);
             PauseTransition delay = new PauseTransition(
                     Duration.millis(type == CoinType.HONEYPOT ? 3500 : 400L * i));
             delay.setOnFinished(e -> {
-                if (gameOver) return; // rodada já acabou antes do spawn atrasado
+                if (gameOver) return;
                 Point2D pos = randomCoinPosition();
                 CoinSprite coin = new CoinSprite(pos.getX(), pos.getY(), type, GameEngine::onCoinDropped);
                 coins.add(coin);
@@ -247,7 +177,6 @@ public class GameEngine {
         }
     }
 
-    /** Moedas soltas pulam para outro lugar — só a que está sendo arrastada escapa. */
     private static void shuffleCoins() {
         for (CoinSprite c : new ArrayList<>(coins)) {
             if (!c.isHeld() && RNG.nextDouble() < phase.coinJumpChance) {
@@ -262,7 +191,6 @@ public class GameEngine {
         coins.remove(coin);
         coin.close();
 
-        // Brilho no ponto de entrega (maior para moedas maiores)
         new StarlightBurst(coin.getX() + coin.getWidth()  / 2,
                            coin.getY() + coin.getHeight() / 2,
                            coin.getWidth() * 1.6).show();
@@ -273,25 +201,15 @@ public class GameEngine {
         if (ransomLeft.get() <= 0) win();
     }
 
-    // ──────────────────────────────────────────────────────
-    //                     TAUNTS
-    // ──────────────────────────────────────────────────────
-
-    /** Opens a taunt popup (respecting the cap). Also called by popups that multiply. */
     static void spawnTaunt() {
         if (gameOver || taunts.size() >= MAX_TAUNTS) return;
         TauntWindow tw = new TauntWindow();
         taunts.add(tw);
         tw.setOnHidden(e -> taunts.remove(tw));
         tw.launch();
-        // Keep ransom window and all coins above the new popup
         if (ransomWindow != null) Win32Window.raise(ransomWindow);
         new ArrayList<>(coins).forEach(Win32Window::raise);
     }
-
-    // ──────────────────────────────────────────────────────
-    //                   WIN / LOSE
-    // ──────────────────────────────────────────────────────
 
     private static void win() {
         if (gameOver) return;
@@ -320,25 +238,21 @@ public class GameEngine {
 
         overlay.show();
         overlay.showCrashJumpscare(() -> {
-            // Audio stutter: rapid replays simulate a frozen/looping sound
             Timeline audioFreeze = new Timeline(
                 new KeyFrame(Duration.millis(80), e -> Assets.playSound("spawn.wav", 0.4)));
-            audioFreeze.setCycleCount(25); // 25 × 80ms ≈ 2s
+            audioFreeze.setCycleCount(25);
             audioFreeze.play();
 
             overlay.showFreeze(() -> {
-                // Wallpaper changes only on lose — stays for 3s, then the app closes
-                WallpaperManager.saveOriginal();
-                WallpaperManager.applyTheme();
+                overlay.close();
+                overlay = null;
+                loseBackground = new RansomBackground();
+                loseBackground.launch();
                 quitOnCleanup = true;
                 endAfter(3);
             });
         });
     }
-
-    // ──────────────────────────────────────────────────────
-    //                   CLEANUP
-    // ──────────────────────────────────────────────────────
 
     private static void endAfter(int seconds) {
         pendingEnd = new PauseTransition(Duration.seconds(seconds));
@@ -347,22 +261,22 @@ public class GameEngine {
     }
 
     static void cleanup() {
-        // ESC durante a tela final não pode disparar um segundo cleanup depois
         if (pendingEnd != null) { pendingEnd.stop(); pendingEnd = null; }
-        if (overlay == null) return; // rodada já limpa — evita abrir o menu duas vezes
-        stopRound();
-        WallpaperManager.restore();
-        closeCoinsAndTaunts();
-        overlay.close();
-        overlay = null;
+        if (loseBackground != null) { loseBackground.close(); loseBackground = null; }
+        if (overlay == null && !quitOnCleanup) return;
+        if (overlay != null) {
+            stopRound();
+            WallpaperManager.restore();
+            closeCoinsAndTaunts();
+            overlay.close();
+            overlay = null;
+        }
         if (ransomWindow != null) { ransomWindow.close(); ransomWindow = null; }
-
         if (quitOnCleanup) { quitOnCleanup = false; App.quit(); return; }
         if (GameConfig.mode == GameConfig.Mode.INFINITE) scheduleNextAttack();
         else Platform.runLater(onReturnToMenu);
     }
 
-    /** Modo infinito: o A-90 volta sozinho depois de um intervalo aleatório. */
     private static void scheduleNextAttack() {
         int min = Math.min(GameConfig.infiniteMinDelay, GameConfig.infiniteMaxDelay);
         int max = Math.max(GameConfig.infiniteMinDelay, GameConfig.infiniteMaxDelay);
@@ -377,7 +291,6 @@ public class GameEngine {
         phaseTimers.forEach(Animation::stop);
         phaseTimers.clear();
         if (music != null) music.stop();
-        // A tela final (vitória ou jumpscare) aparece limpa
         if (glitch != null) { glitch.close(); glitch = null; }
         phase = Phase.CALM;
     }
@@ -388,10 +301,6 @@ public class GameEngine {
         new ArrayList<>(taunts).forEach(t -> { try { t.close(); } catch (Exception ignored) {} });
         taunts.clear();
     }
-
-    // ──────────────────────────────────────────────────────
-    //                   UTILS
-    // ──────────────────────────────────────────────────────
 
     static RansomWindow getRansomWindow() { return ransomWindow; }
 

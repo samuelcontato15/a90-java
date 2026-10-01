@@ -4,19 +4,13 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.Properties;
 
-/**
- * Configurações persistidas em %APPDATA%/a90minigame/config.properties.
- * Valores padrão garantem que o jogo funciona sem nenhum arquivo de config.
- * A duração (1:30) e o débito (calculado pelas levas de moedas) são fixos do jogo.
- */
 public class GameConfig {
 
-    /** O que acontece quando uma rodada termina (vitória, derrota, desvio ou ESC). */
     public enum Mode { MENU, INFINITE }
 
     public static Mode mode             = Mode.MENU;
-    public static int  infiniteMinDelay = 15;   // modo infinito: próximo ataque entre mín e máx
-    public static int  infiniteMaxDelay = 45;   // segundos (aleatório, ~30s em média)
+    public static int  infiniteMinDelay = 15;
+    public static int  infiniteMaxDelay = 45;
 
     private static final Path CONFIG_FILE = Path.of(
         System.getenv().getOrDefault("APPDATA", System.getProperty("user.home")),

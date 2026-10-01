@@ -8,19 +8,6 @@ import javafx.stage.Stage;
 import java.util.Map;
 import java.util.WeakHashMap;
 
-/**
- * Ajustes de janela que o JavaFX não expõe, via user32.dll.
- *
- * - clickThrough(): a janela vira só pintura — cliques, arrasto e hover atravessam
- *   para o que está embaixo. É o que deixa o GlitchOverlay cobrir a tela inteira
- *   sem atrapalhar as moedas, os popups ou a barra de tarefas.
- * - raise(): traz para frente SEM roubar o foco (SWP_NOACTIVATE). O toFront() do
- *   JavaFX ativa a janela, o que cancelaria o arrasto de uma moeda em andamento.
- *
- * A HWND é achada pelo título da janela, então cada Stage que usa esta classe
- * recebe um título único e invisível (as janelas são UNDECORATED/TRANSPARENT).
- * Tudo falha em silêncio fora do Windows ou sem JNA — o jogo roda sem estes ajustes.
- */
 final class Win32Window {
 
     private static final int WS_EX_LAYERED     = 0x00080000;
@@ -37,12 +24,10 @@ final class Win32Window {
 
     private Win32Window() {}
 
-    /** Dá um título único à janela para que ela possa ser localizada depois. */
     static void tag(Stage stage) {
         stage.setTitle("a90-" + (++seq) + "-" + System.nanoTime());
     }
 
-    /** Cliques atravessam a janela. Chame depois de show(). */
     static void clickThrough(Stage stage) {
         HWND hwnd = handleOf(stage);
         if (hwnd == null) return;
@@ -53,7 +38,6 @@ final class Win32Window {
         } catch (Throwable ignored) {}
     }
 
-    /** Traz para frente sem ativar (não rouba o foco de quem está arrastando). */
     static void raise(Stage stage) {
         HWND hwnd = handleOf(stage);
         if (hwnd == null) { stage.toFront(); return; }

@@ -19,13 +19,6 @@ import javafx.util.Duration;
 import java.util.List;
 import java.util.Random;
 
-/**
- * Janela de taunt — glitch popup aleatório.
- * Título aleatório, imagem aleatória, tamanho 200-400, GlitchIdle.
- * Fecha sozinha após 4-10s com som tauntLeave.
- * A cada 200ms tem chance de abrir mais uma TauntWindow (divideAndTaunt).
- * Tremor e chance de multiplicar crescem a cada fase (Phase): 5px/2% → 16px/4%.
- */
 public class TauntWindow extends Stage {
 
     private static final List<String> TITLES = List.of(
@@ -45,7 +38,6 @@ public class TauntWindow extends Stage {
     private boolean  closed = false;
 
     public TauntWindow() {
-        // Decorated — igual ao original (com barra de título)
         initStyle(StageStyle.DECORATED);
         setAlwaysOnTop(true);
         setResizable(false);
@@ -54,7 +46,6 @@ public class TauntWindow extends Stage {
         double w = 200 + RNG.nextInt(200);
         double h = 200 + RNG.nextInt(200);
 
-        // Título e imagem aleatórios
         setTitle(TITLES.get(RNG.nextInt(TITLES.size())));
         Image img = Assets.loadImage(IMAGES.get(RNG.nextInt(IMAGES.size())));
 
@@ -68,7 +59,6 @@ public class TauntWindow extends Stage {
         Assets.infect(scene);
         setScene(scene);
 
-        // Posição aleatória
         Rectangle2D b = Screen.getPrimary().getVisualBounds();
         setX(RNG.nextDouble() * Math.max(0, b.getWidth()  - w));
         setY(RNG.nextDouble() * Math.max(0, b.getHeight() - h));
@@ -79,14 +69,11 @@ public class TauntWindow extends Stage {
         });
     }
 
-    /** Mostra a janela e inicia glitch + timer de fechamento. */
     public void launch() {
         show();
 
         double bX = getX(), bY = getY();
 
-        // GlitchIdle, com chance de spawnar outra janela — ambos pela fase atual.
-        // O spawn passa pelo GameEngine: respeita o teto e para quando a rodada acaba.
         glitch = new Timeline(new KeyFrame(Duration.millis(200), e -> {
             if (closed) return;
             Phase p = GameEngine.currentPhase();
@@ -97,7 +84,6 @@ public class TauntWindow extends Stage {
         glitch.setCycleCount(Timeline.INDEFINITE);
         glitch.play();
 
-        // Fecha após 4-10 segundos
         int delay = 4000 + RNG.nextInt(6000);
         PauseTransition closeTimer = new PauseTransition(Duration.millis(delay));
         closeTimer.setOnFinished(ev -> {

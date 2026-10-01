@@ -7,10 +7,6 @@ import javafx.util.Duration;
 
 import java.net.URL;
 
-/**
- * Plays the OST layers sequentially (layer1 → layer2 → layer3), one per 30s phase.
- * Layers 1–2 loop indefinitely; layer3 is played once, delayed so it ends at exactly 0s.
- */
 public class MusicPlayer {
 
     private MediaPlayer current;
@@ -24,7 +20,6 @@ public class MusicPlayer {
         current.play();
     }
 
-    /** Plays {@code name} once, starting late enough that the track ends at {@code phaseSeconds}. */
     public void playOnceEndingAt(String name, int phaseSeconds) {
         stop();
         URL url = Assets.soundUrl(name);

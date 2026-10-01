@@ -12,19 +12,11 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * Carregador de recursos (empacotados a partir da pasta Assets/ — ver pom.xml).
- * Images, AudioClips e cursores cacheados na primeira carga.
- * Falhas silenciosas — o jogo roda sem assets se necessário.
- */
 public class Assets {
 
-    /** Ícone padrão das janelas do jogo (e do .exe gerado pelo build-exe.bat). */
     public static final String APP_ICON        = "stop_sign.ico";
     public static final String INFECTED_CURSOR = "infectedcursor.cur";
 
-    /** GIF 1920x1080 com 50 frames: o JavaFX decodifica todos os frames em memória,
-     *  então ele é carregado reduzido (~46 MB em vez de ~415 MB) e esticado na tela. */
     private static final String VIGNETTE   = "red_vignette.gif";
     private static final double VIGNETTE_W = 640, VIGNETTE_H = 360;
 
@@ -32,7 +24,6 @@ public class Assets {
     private static final Map<String, AudioClip> sounds  = new HashMap<>();
     private static final Map<String, Cursor>    cursors = new HashMap<>();
 
-    /** Carrega imagem de /assets/<name>. Suporta PNG, GIF animado, JPG, ICO e CUR. */
     public static Image loadImage(String name) {
         return images.computeIfAbsent(name, k -> {
             if (isIcon(k)) {
@@ -45,7 +36,6 @@ public class Assets {
         });
     }
 
-    /** Vinheta vermelha reduzida, carregada em background (não trava a thread do JavaFX). */
     public static Image loadVignette() {
         return images.computeIfAbsent(VIGNETTE, k -> {
             URL url = Assets.class.getResource("/assets/" + k);
@@ -53,12 +43,10 @@ public class Assets {
         });
     }
 
-    /** Aquece o cache dos assets pesados enquanto a tela de início está aberta. */
     public static void preload() {
         loadVignette();
     }
 
-    /** Cursor a partir de um .cur/.ico (usa o hotspot do arquivo, ou o canto superior esquerdo). */
     public static Cursor loadCursor(String name) {
         return cursors.computeIfAbsent(name, k -> {
             IcoDecoder.Icon icon = loadIcon(k);
@@ -67,18 +55,15 @@ public class Assets {
         });
     }
 
-    /** Troca o cursor da cena pelo cursor "infectado" do A-90. */
     public static void infect(Scene scene) {
         scene.setCursor(loadCursor(INFECTED_CURSOR));
     }
 
-    /** Define o ícone da janela (barra de título / barra de tarefas). */
     public static void setIcon(Stage stage, String name) {
         Image img = loadImage(name);
         if (img != null) stage.getIcons().setAll(img);
     }
 
-    /** Dispara som de /assets/Sounds/<name> (fire-and-forget). */
     public static void playSound(String name) {
         playSound(name, 1.0);
     }
@@ -91,7 +76,6 @@ public class Assets {
         if (clip != null) clip.play(volume);
     }
 
-    /** Retorna URL de som (para MediaPlayer). */
     public static URL soundUrl(String name) {
         return Assets.class.getResource("/assets/Sounds/" + name);
     }

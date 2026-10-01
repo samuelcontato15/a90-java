@@ -14,13 +14,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
-/**
- * Janela de vitória — reproduz a animação do ThankYou original:
- * 1. Aparece na posição do RansomWindow
- * 2. Sobe para o centro crescendo
- * 3. Troca para ok_sign.png + thx_txt.png com thankyou.wav
- * 4. Fecha após 4s
- */
 public class ThankYouWindow extends Stage {
 
     public ThankYouWindow(double fromX, double fromY) {
@@ -64,42 +57,35 @@ public class ThankYouWindow extends Stage {
     private void playAnimation(double fromX, double fromY,
                                 Scale scaleOk, Scale scaleThx,
                                 ImageView ivOkSign, ImageView ivThx) {
-        Rectangle2D b   = Screen.getPrimary().getVisualBounds();
-        double centerX  = b.getMinX() + (b.getWidth()  - 300) / 2;
-        double centerY  = b.getMinY() + (b.getHeight() - 320) / 2;
+        Rectangle2D b  = Screen.getPrimary().getVisualBounds();
+        double centerX = b.getMinX() + (b.getWidth()  - 300) / 2;
+        double centerY = b.getMinY() + (b.getHeight() - 320) / 2;
 
-        // Passo 1: move meio caminho (200ms)
         PauseTransition step1 = new PauseTransition(Duration.millis(200));
         step1.setOnFinished(e -> {
             setX(lerp(fromX, centerX, 0.5));
             setY(lerp(fromY, centerY, 0.5));
         });
 
-        // Passo 2: move até o centro (100ms)
         PauseTransition step2 = new PauseTransition(Duration.millis(100));
         step2.setOnFinished(e -> {
             setX(centerX);
             setY(centerY);
         });
 
-        // Passo 3: troca conteúdo, anima ok_sign crescendo (200ms)
         PauseTransition step3 = new PauseTransition(Duration.millis(200));
         step3.setOnFinished(e -> {
             ivOkSign.setOpacity(1);
             Assets.playSound("thankyou.wav");
-            Timeline grow = growAnim(scaleOk, 300);
-            grow.play();
+            growAnim(scaleOk, 300).play();
         });
 
-        // Passo 4: anima thx_txt (400ms depois)
         PauseTransition step4 = new PauseTransition(Duration.millis(400));
         step4.setOnFinished(e -> {
             ivThx.setOpacity(1);
-            Timeline grow = growAnim(scaleThx, 200);
-            grow.play();
+            growAnim(scaleThx, 200).play();
         });
 
-        // Passo 5: fecha após 4s
         PauseTransition close = new PauseTransition(Duration.seconds(4));
         close.setOnFinished(e -> this.close());
 
@@ -107,7 +93,7 @@ public class ThankYouWindow extends Stage {
     }
 
     private static Timeline growAnim(Scale scale, int durationMs) {
-        Timeline tl = new Timeline(
+        return new Timeline(
             new KeyFrame(Duration.ZERO,
                 new KeyValue(scale.xProperty(), 0.1),
                 new KeyValue(scale.yProperty(), 0.1)),
@@ -115,7 +101,6 @@ public class ThankYouWindow extends Stage {
                 new KeyValue(scale.xProperty(), 1.0, Interpolator.EASE_OUT),
                 new KeyValue(scale.yProperty(), 1.0, Interpolator.EASE_OUT))
         );
-        return tl;
     }
 
     private static double lerp(double a, double b, double t) {

@@ -9,10 +9,6 @@ import javafx.stage.Stage;
 import javafx.stage.StageStyle;
 import javafx.util.Duration;
 
-/**
- * Brilho (Starlight.png) que estoura no ponto onde a moeda foi entregue ao A-90.
- * Cresce girando e some em ~450ms; fecha sozinho.
- */
 public class StarlightBurst extends Stage {
 
     public StarlightBurst(double centerX, double centerY, double size) {

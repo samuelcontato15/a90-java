@@ -6,13 +6,6 @@ import com.sun.jna.platform.win32.WinUser;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Atalho global Ctrl+Alt+Shift+A que fecha o app de qualquer lugar — é a forma de parar
- * o modo infinito, já que entre um ataque e outro não há nenhuma janela para receber o ESC.
- *
- * RegisterHotKey entrega WM_HOTKEY na fila de mensagens da thread que registrou,
- * então essa thread (daemon) fica num loop de GetMessage próprio.
- */
 final class KillSwitch {
 
     static final String LABEL = "Ctrl+Alt+Shift+A";
@@ -24,7 +17,6 @@ final class KillSwitch {
 
     private KillSwitch() {}
 
-    /** Registra o atalho. Retorna false se outro programa já o usa (ou sem JNA/Windows). */
     static boolean register(Runnable onPressed) {
         boolean[] ok = {false};
         CountDownLatch registered = new CountDownLatch(1);
